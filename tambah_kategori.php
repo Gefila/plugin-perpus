@@ -61,15 +61,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <form method="POST" class="mb-4">
     <div class="mb-3">
         <label for="idKategori" class="form-label">ID Kategori (max 4 karakter)</label>
-        <input type="text" maxlength="4" class="form-control" id="idKategori" name="idKategori" required
-            value="<?= htmlspecialchars($idKategoriOtomatis) ?>"
-            <?= isset($editData) ? 'readonly' : 'readonly' ?>>
-        <!-- readonly agar user tidak bisa ubah ID kategori otomatis -->
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-tag"></i></span>
+            <input type="text" maxlength="4" class="form-control" id="idKategori" name="idKategori" required
+                value="<?= htmlspecialchars($idKategoriOtomatis) ?>" readonly>
+        </div>
     </div>
     <div class="mb-3">
         <label for="nmKategori" class="form-label">Nama Kategori (max 20 karakter)</label>
-        <input type="text" maxlength="20" class="form-control" id="nmKategori" name="nmKategori" required
-            value="<?= isset($editData['nm_kategori']) ? htmlspecialchars($editData['nm_kategori']) : '' ?>">
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-book"></i></span>
+            <input type="text" maxlength="20" class="form-control" id="nmKategori" name="nmKategori" required
+                value="<?= isset($editData['nm_kategori']) ? htmlspecialchars($editData['nm_kategori']) : '' ?>">
+        </div>
     </div>
     <button type="submit" class="btn btn-primary">
         <?= isset($editData) ? 'Update' : 'Simpan' ?>

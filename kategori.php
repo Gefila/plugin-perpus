@@ -7,7 +7,6 @@ if (isset($_GET['hapus'])) {
     if ($conn->query($sqlDel)) {
         echo '<div class="alert alert-success">Data berhasil dihapus.</div>';
         echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=kategori.php">';
-        exit;
     } else {
         echo '<div class="alert alert-danger">Gagal menghapus data.</div>';
     }
@@ -35,13 +34,13 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
         </tr>
     </thead>
     <tbody>
-    <?php
-    $no = 1;
-    if ($result && $result->num_rows > 0) {
-        while ($row = $result->fetch_assoc()) {
-            $id = htmlspecialchars($row['id_kategori']);
-            $nama = htmlspecialchars($row['nm_kategori']);
-            echo "<tr>
+        <?php
+        $no = 1;
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $id = htmlspecialchars($row['id_kategori']);
+                $nama = htmlspecialchars($row['nm_kategori']);
+                echo "<tr>
                     <td>$no</td>
                     <td>$id</td>
                     <td>$nama</td>
@@ -50,11 +49,11 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
                         <a href='?page=perpus_utama&panggil=kategori.php&hapus=$id' class='btn btn-danger btn-sm' onclick=\"return confirm('Yakin hapus data ini?')\">Hapus</a>
                     </td>
                   </tr>";
-            $no++;
+                $no++;
+            }
+        } else {
+            echo '<tr><td colspan="4" class="text-center">Tidak ada data kategori</td></tr>';
         }
-    } else {
-        echo '<tr><td colspan="4" class="text-center">Tidak ada data kategori</td></tr>';
-    }
-    ?>
+        ?>
     </tbody>
 </table>
