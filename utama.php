@@ -46,7 +46,9 @@ function perpus_modulku() {
                     <li class="nav-item">
                         <a class="nav-link" href="admin.php?page=perpus_utama&panggil=buku.php">Entry Data Buku</a>
                     </li>
-
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.php?page=perpus_utama&panggil=anggota.php">Entry Data Anggota</a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Master</a>
                         <ul class="dropdown-menu">
@@ -96,6 +98,24 @@ function perpus_tambah_menu() {
         'perpus_modulku',                  // Callback function
         'dashicons-book-alt',      // Icon
         81,                         // Position
+    );
+
+    add_submenu_page(
+        'perpus_utama',             // Parent slug
+        'Entry Data Kategori',      // Page title
+        'Entry Data Kategori',      // Menu title
+        'read',                     // Capability
+        'perpus_utama&panggil=kategori.php', // Menu slug
+        'perpus_modulku'            // Callback function
+    );
+
+    add_submenu_page(
+        'perpus_utama',             // Parent slug
+        'Entry Data Buku',          // Page title
+        'Entry Data Buku',          // Menu title
+        'read',                     // Capability
+        'perpus_utama&panggil=buku.php', // Menu slug
+        'perpus_modulku'            // Callback function
     );
 }
 add_action('admin_menu', 'perpus_tambah_menu');
