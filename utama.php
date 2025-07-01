@@ -15,7 +15,6 @@ function perpus_modulku() {
     if ($conn->connect_error) {
         die("Koneksi gagal: " . $conn->connect_error);
     }
-
 ?>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -24,7 +23,6 @@ function perpus_modulku() {
         #wpcontent {
             padding: 0 !important;
         }
-
         .form-select {
             width: 100% !important;
         }
@@ -40,32 +38,36 @@ function perpus_modulku() {
             </button>
             <div class="collapse navbar-collapse" id="collapsibleNavbar">
                 <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin.php?page=perpus_utama&panggil=kategori.php">Entry Data Kategori</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin.php?page=perpus_utama&panggil=buku.php">Entry Data Buku</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin.php?page=perpus_utama&panggil=anggota.php">Entry Data Anggota</a>
-                    </li>
+
+                    <!-- Dropdown Master -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Master</a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="admin.php?page=utama&panggil=jenis.php">Manajemen Jenis Keluhan</a></li>
-                            <li><a class="dropdown-item" href="admin.php?page=utama&panggil=bagian.php">Bagian</a></li>
-                            <li><a class="dropdown-item" href="admin.php?page=utama&panggil=mahasiswa.php">Mahasiswa</a></li>
-                            <li><a class="dropdown-item" href="#">A third link</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=kategori.php">Entry Data Kategori</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=buku.php">Entry Data Buku</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=anggota.php">Entry Data Anggota</a></li>
                         </ul>
                     </li>
+
+                    <!-- Dropdown Transaksi -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Dropdown</a>
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Transaksi</a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#">Link</a></li>
-                            <li><a class="dropdown-item" href="#">Another link</a></li>
-                            <li><a class="dropdown-item" href="#">A third link</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=peminjaman.php">Entry Peminjaman</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=pengembalian.php">Entry Pengembalian</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=denda.php">Entry Denda</a></li>
                         </ul>
                     </li>
+
+                    <!-- Dropdown Tambahan -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Cetak</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">Cetak Laporan Peminja</a></li>
+                            <li><a class="dropdown-item" href="#">Cetak Laporan Pengembalian</a></li>
+                        </ul>
+                    </li>
+
                 </ul>
             </div>
         </div>
@@ -92,32 +94,67 @@ function perpus_modulku() {
 function perpus_tambah_menu() {
     add_menu_page(
         'SI Perpustakaan 6 Ksatria', // Page title
-        'Perpustakaan',           // Menu title
-        'read',                     // Capability
-        'perpus_utama',                    // Menu slug
-        'perpus_modulku',                  // Callback function
-        'dashicons-book-alt',      // Icon
-        81,                         // Position
+        'Perpustakaan',              // Menu title
+        'read',                      // Capability
+        'perpus_utama',              // Menu slug
+        'perpus_modulku',            // Callback function
+        'dashicons-book-alt',        // Icon
+        81                           // Position
     );
 
     add_submenu_page(
-        'perpus_utama',             // Parent slug
-        'Entry Data Kategori',      // Page title
-        'Entry Data Kategori',      // Menu title
-        'read',                     // Capability
-        'perpus_utama&panggil=kategori.php', // Menu slug
-        'perpus_modulku'            // Callback function
+        'perpus_utama',
+        'Entry Data Kategori',
+        'Entry Data Kategori',
+        'read',
+        'perpus_utama&panggil=kategori.php',
+        'perpus_modulku'
     );
 
     add_submenu_page(
-        'perpus_utama',             // Parent slug
-        'Entry Data Buku',          // Page title
-        'Entry Data Buku',          // Menu title
-        'read',                     // Capability
-        'perpus_utama&panggil=buku.php', // Menu slug
-        'perpus_modulku'            // Callback function
+        'perpus_utama',
+        'Entry Data Buku',
+        'Entry Data Buku',
+        'read',
+        'perpus_utama&panggil=buku.php',
+        'perpus_modulku'
+    );
+
+    add_submenu_page(
+        'perpus_utama',
+        'Entry Data Anggota',
+        'Entry Data Anggota',
+        'read',
+        'perpus_utama&panggil=anggota.php',
+        'perpus_modulku'
+    );
+
+    add_submenu_page(
+        'perpus_utama',
+        'Entry Peminjaman',
+        'Entry Peminjaman',
+        'read',
+        'perpus_utama&panggil=peminjaman.php',
+        'perpus_modulku'
+    );
+
+    add_submenu_page(
+        'perpus_utama',
+        'Entry Pengembalian',
+        'Entry Pengembalian',
+        'read',
+        'perpus_utama&panggil=pengembalian.php',
+        'perpus_modulku'
+    );
+
+    add_submenu_page(
+        'perpus_utama',
+        'Entry Denda',
+        'Entry Denda',
+        'read',
+        'perpus_utama&panggil=denda.php',
+        'perpus_modulku'
     );
 }
 add_action('admin_menu', 'perpus_tambah_menu');
-
 ?>

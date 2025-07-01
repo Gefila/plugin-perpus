@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     $judul       = $_POST['judul_buku'];
     $pengarang   = $_POST['pengarang'];
     $tahun       = $_POST['thn_terbit'];
-    $jumlah      = $_POST['jml_buku'];
+    $jumlah      = (int) $_POST['jml_buku'];
     $penerbit    = $_POST['penerbit'];
     $id_kategori = $_POST['id_kategori'];
 
@@ -53,6 +53,31 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     }
 
     if ($stmt->execute()) {
+        if ($cek->num_rows == 0) {
+            // Tambah copy_buku baru (jika insert buku baru)
+            for ($i = 1; $i <= $jumlah; $i++) {
+                $no_copy = $id_buku . '-CB' . $i;
+                $conn->query("INSERT INTO copy_buku (no_copy_buku, id_buku, status_buku) VALUES ('$no_copy', '$id_buku', 'tersedia')");
+            }
+        } else {
+            // Update: Sesuaikan copy_buku
+            $resultJumlah = $conn->query("SELECT jml_buku FROM buku WHERE id_buku = '$id_buku'");
+            $jumlah_lama = $editData['jml_buku'] ?? 0;
+            $jumlah_lama = (int)$jumlah_lama;
+
+            if ($jumlah > $jumlah_lama) {
+                for ($i = $jumlah_lama + 1; $i <= $jumlah; $i++) {
+                    $no_copy = $id_buku . '-CB' . $i;
+                    $conn->query("INSERT INTO copy_buku (no_copy_buku, id_buku, status_buku) VALUES ('$no_copy', '$id_buku', 'tersedia')");
+                }
+            } elseif ($jumlah < $jumlah_lama) {
+                for ($i = $jumlah_lama; $i > $jumlah; $i--) {
+                    $no_copy = $id_buku . '-CB' . $i;
+                    $conn->query("DELETE FROM copy_buku WHERE no_copy_buku = '$no_copy'");
+                }
+            }
+        }
+
         echo "<div class='alert alert-success'>Data buku berhasil disimpan.</div>";
         echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=buku.php">';
     } else {
@@ -82,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
         </div>
         <div class="mb-3">
             <label>Jumlah Buku:</label>
-            <input type="text" name="jml_buku" class="form-control" value="<?= isset($editData['jml_buku']) ? htmlspecialchars($editData['jml_buku']) : '' ?>">
+            <input type="number" name="jml_buku" class="form-control" required value="<?= isset($editData['jml_buku']) ? htmlspecialchars($editData['jml_buku']) : '' ?>">
         </div>
         <div class="mb-3">
             <label>Penerbit:</label>
