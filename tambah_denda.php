@@ -2,7 +2,6 @@
 $conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
-
 $pengembalian = $conn->query("SELECT no_pengembalian FROM pengembalian 
                               WHERE status_denda = 'terdenda' 
                               AND no_pengembalian NOT IN (SELECT no_pengembalian FROM denda)");
@@ -23,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $no_pengembalian = $_POST['no_pengembalian'];
     $tarif = $_POST['tarif_denda'];
     $alasan = $_POST['alasan_denda'];
-    $tgl = date('Y-m-d');
+    $tgl = $_POST['tgl_denda']; // manual input dari form
     $no_denda = generateNoDenda($conn);
 
     $conn->query("INSERT INTO denda (no_denda, tgl_denda, tarif_denda, alasan_denda, no_pengembalian) 
@@ -44,10 +43,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <option value="<?= $r['no_pengembalian'] ?>"><?= $r['no_pengembalian'] ?></option>
         <?php endwhile; ?>
     </select>
+
     <label class="mt-2">Tarif Denda</label>
     <input type="number" name="tarif_denda" required class="form-control">
+
     <label class="mt-2">Alasan Denda</label>
     <input type="text" name="alasan_denda" required class="form-control">
+
+    <label class="mt-2">Tanggal Denda</label>
+    <input type="date" name="tgl_denda" required class="form-control">
+
     <br>
     <button type="submit" class="btn btn-success">Simpan</button>
 </form>
