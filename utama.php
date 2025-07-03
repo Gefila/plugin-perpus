@@ -31,7 +31,7 @@ function perpus_modulku() {
     <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
-                <img src="<?= $plugin_url; ?>/pp1.png" alt="" style="width: 65px; height: 65px; border-radius: 50%;">
+                <img src="<?= $plugin_url; ?>/pp1.jpeg" alt="" style="width: 65px; height: 65px; border-radius: 50%;">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
                 <span class="navbar-toggler-icon"></span>
