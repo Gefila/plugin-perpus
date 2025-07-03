@@ -2,7 +2,7 @@
 $conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
-// Proses hapus denda jika ada parameter ?hapus=
+
 if (isset($_GET['hapus'])) {
     $id = $conn->real_escape_string($_GET['hapus']);
     $conn->query("DELETE FROM denda WHERE no_denda = '$id'");
@@ -14,7 +14,7 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
-// Ambil data denda + anggota
+
 $denda = $conn->query("SELECT d.*, a.nm_anggota FROM denda d 
     LEFT JOIN pengembalian p ON d.no_pengembalian = p.no_pengembalian
     LEFT JOIN peminjaman pm ON p.no_peminjaman = pm.no_peminjaman

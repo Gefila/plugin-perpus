@@ -2,17 +2,16 @@
 $conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
-// Ambil pengembalian yang status_denda = 'terdenda' dan belum masuk tabel denda
+
 $pengembalian = $conn->query("SELECT no_pengembalian FROM pengembalian 
                               WHERE status_denda = 'terdenda' 
                               AND no_pengembalian NOT IN (SELECT no_pengembalian FROM denda)");
 
-// Fungsi generate kode denda otomatis
 function generateNoDenda($conn) {
     $result = $conn->query("SELECT no_denda FROM denda ORDER BY no_denda DESC LIMIT 1");
     if ($result->num_rows > 0) {
         $last = $result->fetch_assoc()['no_denda'];
-        $num = (int)substr($last, 2); // Ambil angka setelah 'DN'
+        $num = (int)substr($last, 2);
         $num++;
         return 'DN' . str_pad($num, 2, '0', STR_PAD_LEFT);
     } else {
