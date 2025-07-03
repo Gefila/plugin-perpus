@@ -78,7 +78,7 @@ while ($b = $buku_result->fetch_assoc()) {
 
 <body class="p-3">
 
-    <h3>Tambah Peminjaman Buku</h3>
+    <h3 style="text-align: center;">Tambah Peminjaman Buku</h3>
 
     <form method="POST" class="container">
 
@@ -156,22 +156,39 @@ while ($b = $buku_result->fetch_assoc()) {
         }
 
         function updateDropdownOptions() {
-            const selectedIds = getSelectedBookIds();
+            const allRows = [...document.querySelectorAll("#tabel_buku tbody tr")];
 
-            document.querySelectorAll(".id-buku").forEach(select => {
-                const current = select.value;
-                select.innerHTML = `<option value="">PILIH</option>` + Object.entries(bookData)
-                    .map(([id]) => `<option value="${id}" ${id === current ? 'selected' : ''}>${id}</option>`)
-                    .join('');
-            });
+            // Kumpulkan semua id yang sudah dipilih di setiap baris
+            const selectedIds = allRows.map(row => row.querySelector(".id-buku").value).filter(val => val);
 
-            document.querySelectorAll(".judul-buku").forEach(select => {
-                const current = select.value;
-                select.innerHTML = `<option value="">PILIH</option>` + Object.entries(bookData)
-                    .map(([id, data]) => `<option value="${id}" ${id === current ? 'selected' : ''}>${data.judul}</option>`)
-                    .join('');
+            allRows.forEach(row => {
+                const idSelect = row.querySelector(".id-buku");
+                const judulSelect = row.querySelector(".judul-buku");
+                const currentId = idSelect.value;
+
+                // Buat daftar ID yang boleh muncul di baris ini
+                const availableIds = Object.keys(bookData).filter(id => {
+                    return !selectedIds.includes(id) || id === currentId;
+                });
+
+                // Isi dropdown ID
+                idSelect.innerHTML = `<option value="">PILIH</option>` +
+                    availableIds.map(id => {
+                        const selected = id === currentId ? 'selected' : '';
+                        return `<option value="${id}" ${selected}>${id}</option>`;
+                    }).join('');
+
+                // Isi dropdown Judul
+                judulSelect.innerHTML = `<option value="">PILIH</option>` +
+                    availableIds.map(id => {
+                        const selected = id === currentId ? 'selected' : '';
+                        return `<option value="${id}" ${selected}>${bookData[id].judul}</option>`;
+                    }).join('');
             });
         }
+
+
+
 
         btnTambah.addEventListener("click", () => {
             const rowCount = tableBody.rows.length + 1;

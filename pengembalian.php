@@ -29,7 +29,7 @@ $sql = "
     LEFT JOIN bisa bs ON p.no_pengembalian = bs.no_pengembalian
     LEFT JOIN copy_buku cb ON bs.no_copy_buku = cb.no_copy_buku
     LEFT JOIN buku b ON cb.id_buku = b.id_buku
-    GROUP BY p.no_pengembalian, b.id_buku
+    GROUP BY p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian, pm.id_anggota, a.nm_anggota, b.id_buku, b.judul_buku
     ORDER BY p.no_pengembalian ASC
 ";
 
