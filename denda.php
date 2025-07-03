@@ -1,75 +1,58 @@
 <?php
-// Handle hapus data denda
+$conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
+if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
+
+// Proses hapus denda jika ada parameter ?hapus=
 if (isset($_GET['hapus'])) {
-    $idHapus = $conn->real_escape_string($_GET['hapus']);
-    $sqlDel = "DELETE FROM denda WHERE id_denda = '$idHapus'";
-    if ($conn->query($sqlDel)) {
-        echo '<div class="alert alert-success">Data denda berhasil dihapus.</div>';
-        echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=denda.php">';
-    } else {
-        echo '<div class="alert alert-danger">Gagal menghapus data denda.</div>';
-    }
+    $id = $conn->real_escape_string($_GET['hapus']);
+    $conn->query("DELETE FROM denda WHERE no_denda = '$id'");
+
+    echo "<script>
+        alert('Data denda berhasil dihapus!');
+        window.location.href='admin.php?page=perpus_utama&panggil=denda.php';
+    </script>";
+    exit;
 }
 
-// Ambil data denda lengkap
-$sql = "SELECT d.id_denda, d.tanggal_denda, d.harga_denda, d.alasan, 
-               p.id_pengembalian, pj.tanggal_pinjam, 
-               a.id_anggota, a.nm_anggota
-        FROM denda d
-        JOIN pengembalian p ON d.id_pengembalian = p.id_pengembalian
-        JOIN peminjaman pj ON p.id_peminjaman = pj.id_peminjaman
-        JOIN anggota a ON pj.id_anggota = a.id_anggota
-        ORDER BY d.id_denda DESC";
-
-$result = $conn->query($sql);
+// Ambil data denda + anggota
+$denda = $conn->query("SELECT d.*, a.nm_anggota FROM denda d 
+    LEFT JOIN pengembalian p ON d.no_pengembalian = p.no_pengembalian
+    LEFT JOIN peminjaman pm ON p.no_peminjaman = pm.no_peminjaman
+    LEFT JOIN anggota a ON pm.id_anggota = a.id_anggota");
 ?>
 
-<h2 class="text-center">Daftar Denda</h2>
+<div class="container-fluid mt-4">
+  <h2 class="text-center">Data Denda</h2>
+  <a href="admin.php?page=perpus_utama&panggil=tambah_denda.php" class="btn btn-primary mb-3">+ Tambah Denda</a>
 
-<!-- Tombol tambah -->
-<a href="admin.php?page=perpus_utama&panggil=tambah_denda.php" class="btn btn-success mb-3">
-    <i class="fa fa-plus"></i> Tambah Denda
-</a>
-
-<table class="table table-striped table-bordered">
-    <thead class="table-dark text-center">
-        <tr>
-            <th>No. Denda</th>
-            <th>Tanggal Denda</th>
-            <th>No. Pengembalian</th>
-            <th>Tanggal Peminjaman</th>
-            <th>Harga Denda</th>
-            <th>Alasan Denda</th>
-            <th>ID Anggota</th>
-            <th>Nama Anggota</th>
-            <th>Aksi</th>
-        </tr>
+  <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>No</th>
+        <th>No Denda</th>
+        <th>Nama Anggota</th>
+        <th>Tarif</th>
+        <th>Alasan</th>
+        <th>Tanggal Denda</th>
+        <th class="text-center">Aksi</th>
+      </tr>
     </thead>
     <tbody>
-        <?php
-        $no = 1;
-        if ($result && $result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                echo "<tr>
-                    <td class='text-center'>{$no}</td>
-                    <td>" . htmlspecialchars($row['id_denda']) . "</td>
-                    <td>" . htmlspecialchars($row['tanggal_denda']) . "</td>
-                    <td>" . htmlspecialchars($row['id_pengembalian']) . "</td>
-                    <td>" . htmlspecialchars($row['tanggal_pinjam']) . "</td>
-                    <td>Rp " . number_format($row['harga_denda'], 0, ',', '.') . "</td>
-                    <td>" . htmlspecialchars($row['alasan']) . "</td>
-                    <td>" . htmlspecialchars($row['id_anggota']) . "</td>
-                    <td>" . htmlspecialchars($row['nm_anggota']) . "</td>
-                    <td class='text-center'>
-                        <a href='?page=perpus_utama&panggil=denda.php&hapus=" . urlencode($row['id_denda']) . "' 
-                           class='btn btn-danger btn-sm' onclick=\"return confirm('Yakin hapus data ini?')\">Hapus</a>
-                    </td>
-                </tr>";
-                $no++;
-            }
-        } else {
-            echo '<tr><td colspan="10" class="text-center">Tidak ada data denda</td></tr>';
-        }
-        ?>
+      <?php $no = 1; while ($row = $denda->fetch_assoc()): ?>
+        <tr>
+          <td><?= $no++ ?></td>
+          <td><?= $row['no_denda'] ?></td>
+          <td><?= $row['nm_anggota'] ?></td>
+          <td>Rp<?= number_format($row['tarif_denda'], 0, ',', '.') ?></td>
+          <td><?= $row['alasan_denda'] ?></td>
+          <td><?= date('d-m-Y', strtotime($row['tgl_denda'])) ?></td>
+          <td class="text-center">
+            <a href="admin.php?page=perpus_utama&panggil=denda.php&hapus=<?= $row['no_denda'] ?>"
+               class="btn btn-danger btn-sm"
+               onclick="return confirm('Yakin ingin menghapus data ini?')">Hapus</a>
+          </td>
+        </tr>
+      <?php endwhile; ?>
     </tbody>
-</table>
+  </table>
+</div>

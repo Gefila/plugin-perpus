@@ -1,68 +1,54 @@
 <?php
-// Proses simpan denda
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $tanggal     = $conn->real_escape_string($_POST['tanggal_denda']);
-    $tarif       = (int) $_POST['tarif_denda'];
-    $alasan      = $conn->real_escape_string($_POST['alasan']);
-    $id_kembali  = $conn->real_escape_string($_POST['id_pengembalian']);
+$conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
+if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
-    $query = "INSERT INTO denda (tanggal_denda, harga_denda, alasan, id_pengembalian)
-              VALUES ('$tanggal', $tarif, '$alasan', '$id_kembali')";
+// Ambil pengembalian yang status_denda = 'terdenda' dan belum masuk tabel denda
+$pengembalian = $conn->query("SELECT no_pengembalian FROM pengembalian 
+                              WHERE status_denda = 'terdenda' 
+                              AND no_pengembalian NOT IN (SELECT no_pengembalian FROM denda)");
 
-    if ($conn->query($query)) {
-        echo '<div class="alert alert-success">Denda berhasil disimpan.</div>';
-        echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=denda.php">';
+// Fungsi generate kode denda otomatis
+function generateNoDenda($conn) {
+    $result = $conn->query("SELECT no_denda FROM denda ORDER BY no_denda DESC LIMIT 1");
+    if ($result->num_rows > 0) {
+        $last = $result->fetch_assoc()['no_denda'];
+        $num = (int)substr($last, 2); // Ambil angka setelah 'DN'
+        $num++;
+        return 'DN' . str_pad($num, 2, '0', STR_PAD_LEFT);
     } else {
-        echo '<div class="alert alert-danger">Gagal menyimpan denda: ' . $conn->error . '</div>';
+        return 'DN01';
     }
 }
 
-// Ambil data pengembalian untuk dropdown
-$pengembalianResult = $conn->query("SELECT p.id_pengembalian, pj.id_peminjaman, a.nm_anggota 
-                                    FROM pengembalian p 
-                                    JOIN peminjaman pj ON p.id_peminjaman = pj.id_peminjaman 
-                                    JOIN anggota a ON pj.id_anggota = a.id_anggota 
-                                    ORDER BY p.id_pengembalian DESC");
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $no_pengembalian = $_POST['no_pengembalian'];
+    $tarif = $_POST['tarif_denda'];
+    $alasan = $_POST['alasan_denda'];
+    $tgl = date('Y-m-d');
+    $no_denda = generateNoDenda($conn);
+
+    $conn->query("INSERT INTO denda (no_denda, tgl_denda, tarif_denda, alasan_denda, no_pengembalian) 
+                  VALUES ('$no_denda', '$tgl', '$tarif', '$alasan', '$no_pengembalian')");
+
+    $conn->query("UPDATE pengembalian SET status_denda='terdenda' WHERE no_pengembalian='$no_pengembalian'");
+
+    echo "<script>alert('Denda berhasil ditambahkan');location.href='admin.php?page=perpus_utama&panggil=denda.php';</script>";
+}
 ?>
 
-<div class="container mt-4">
-    <h3 class="mb-4 text-center">Denda</h3>
-    <form method="POST" class="border p-4 bg-light rounded">
-        <div class="mb-3">
-            <label>Tanggal Denda:</label>
-            <input type="date" name="tanggal_denda" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label>Tarif Denda (Rp):</label>
-            <input type="number" name="tarif_denda" class="form-control" required min="0">
-        </div>
-
-        <div class="mb-3">
-            <label>Alasan Denda:</label>
-            <textarea name="alasan" class="form-control" rows="3" required></textarea>
-        </div>
-
-        <div class="mb-3">
-            <label>Nomor Pengembalian:</label>
-            <select name="id_pengembalian" class="form-select" required>
-                <option value="">-- Pilih Nomor Pengembalian --</option>
-                <?php
-                if ($pengembalianResult && $pengembalianResult->num_rows > 0) {
-                    while ($row = $pengembalianResult->fetch_assoc()) {
-                        $idPengembalian = htmlspecialchars($row['id_pengembalian']);
-                        $idPeminjaman   = htmlspecialchars($row['id_peminjaman']);
-                        $namaAnggota    = htmlspecialchars($row['nm_anggota']);
-                        echo "<option value='$idPengembalian'>$idPengembalian - $idPeminjaman - $namaAnggota</option>";
-                    }
-                } else {
-                    echo "<option disabled>Data pengembalian tidak ditemukan</option>";
-                }
-                ?>
-            </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Simpan</button>
-        <a href="admin.php?page=perpus_utama&panggil=denda.php" class="btn btn-secondary">Batal</a>
-    </form>
-</div>
+<h3>Tambah Denda</h3>
+<form method="POST">
+    <label>Pilih No Pengembalian</label>
+    <select name="no_pengembalian" class="form-control" required>
+        <option value="">-- Pilih --</option>
+        <?php while($r = $pengembalian->fetch_assoc()): ?>
+        <option value="<?= $r['no_pengembalian'] ?>"><?= $r['no_pengembalian'] ?></option>
+        <?php endwhile; ?>
+    </select>
+    <label class="mt-2">Tarif Denda</label>
+    <input type="number" name="tarif_denda" required class="form-control">
+    <label class="mt-2">Alasan Denda</label>
+    <input type="text" name="alasan_denda" required class="form-control">
+    <br>
+    <button type="submit" class="btn btn-success">Simpan</button>
+</form>
