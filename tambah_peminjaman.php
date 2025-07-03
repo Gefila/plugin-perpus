@@ -1,68 +1,64 @@
 <?php
-// koneksi database
-// Pastikan $conn sudah terkoneksi sebelum kode ini
+
+function generateNoPeminjaman($conn) {
+    $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_peminjaman, 3) AS UNSIGNED)) AS max_num FROM peminjaman");
+    $row = $result->fetch_assoc();
+    $next = (int)$row['max_num'] + 1;
+    return "PJ" . str_pad($next, 4, '0', STR_PAD_LEFT);
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    function generateNoPeminjaman($conn) {
-        $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_peminjaman, 3) AS UNSIGNED)) AS max_num FROM peminjaman");
-        $row = $result->fetch_assoc();
-        $next = (int)$row['max_num'] + 1;
-        return "PJ" . str_pad($next, 4, '0', STR_PAD_LEFT);
-    }
-
     $tgl_pinjam = $_POST['tgl_pinjam'];
     $tgl_kembali = $_POST['tgl_kembali'];
     $id_anggota = $_POST['id_anggota'];
     $no_peminjaman = generateNoPeminjaman($conn);
 
-    // ✅ Langkah 1: Validasi semua stok buku dulu
-    foreach ($_POST['id_buku'] as $i => $id_buku) {
-        $jumlah = (int)$_POST['jumlah'][$i];
-
-        if (!is_numeric($jumlah) || (int)$jumlah < 1) {
-            echo "<script>alert('Jumlah buku untuk ID $id_buku harus diisi dan minimal 1.'); window.history.back();</script>";
-            exit;
-        }
-
-        $cek = $conn->query("SELECT jml_buku FROM buku WHERE id_buku = '$id_buku'");
-        $data = $cek->fetch_assoc();
-        $stok = (int)$data['jml_buku'];
-
-        if ($stok < $jumlah) {
-            echo "<script>alert('Stok buku ID $id_buku tidak mencukupi. Stok tersedia: $stok'); window.history.back();</script>";
-            exit;
-        }
+    if (!isset($_POST['copy_buku']) || !is_array($_POST['copy_buku'])) {
+        echo "<script>alert('Pilih minimal satu copy buku yang tersedia!'); window.history.back();</script>";
+        exit;
     }
 
-    // ✅ Langkah 2: Jika validasi stok lolos, baru insert peminjaman
+    // Hitung total copy buku yang dipinjam
+    $totalDipinjam = 0;
+    foreach ($_POST['copy_buku'] as $id_buku => $copies) {
+        $totalDipinjam += count($copies);
+    }
+
+    if ($totalDipinjam < 1) {
+        echo "<script>alert('Pilih minimal satu copy buku!'); window.history.back();</script>";
+        exit;
+    }
+
     $query = "INSERT INTO peminjaman (no_peminjaman, tgl_peminjaman, tgl_harus_kembali, id_anggota)
               VALUES ('$no_peminjaman', '$tgl_pinjam', '$tgl_kembali', '$id_anggota')";
 
     if ($conn->query($query)) {
-        foreach ($_POST['id_buku'] as $i => $id_buku) {
-            $jumlah = (int)$_POST['jumlah'][$i];
-
-            $copy = $conn->query("SELECT no_copy_buku FROM copy_buku 
-                                  WHERE id_buku = '$id_buku' AND status_buku = 'tersedia'
-                                  LIMIT $jumlah");
-
-            while ($c = $copy->fetch_assoc()) {
-                $no_copy = $c['no_copy_buku'];
+        foreach ($_POST['copy_buku'] as $id_buku => $copies) {
+            foreach ($copies as $no_copy) {
+                $cek = $conn->query("SELECT status_buku FROM copy_buku WHERE no_copy_buku = '$no_copy' AND id_buku = '$id_buku'");
+                $data = $cek->fetch_assoc();
+                if (!$data || $data['status_buku'] != 'tersedia') {
+                    echo "<script>alert('Copy buku $no_copy untuk buku $id_buku sudah tidak tersedia.'); window.history.back();</script>";
+                    exit;
+                }
 
                 $conn->query("UPDATE copy_buku SET status_buku = 'dipinjam' WHERE no_copy_buku = '$no_copy'");
-                $conn->query("INSERT INTO dapat (no_peminjaman, no_copy_buku, jml_pinjam) 
-                              VALUES ('$no_peminjaman', '$no_copy', 1)");
+                $conn->query("INSERT INTO dapat (no_peminjaman, no_copy_buku, jml_pinjam) VALUES ('$no_peminjaman', '$no_copy', 1)");
             }
         }
 
         echo "<script>alert('Peminjaman berhasil disimpan!'); window.location.href='admin.php?page=perpus_utama&panggil=peminjaman.php';</script>";
+        exit;
     } else {
-        echo "<script>alert('Gagal menyimpan data: " . $conn->error . "');</script>";
+        echo "<script>alert('Gagal menyimpan data: " . $conn->error . "'); window.history.back();</script>";
+        exit;
     }
 }
 
+// Ambil data anggota
 $anggota_result = $conn->query("SELECT id_anggota, nm_anggota FROM anggota ORDER BY nm_anggota ASC");
 
+// Ambil data buku dan stok tersedia
 $buku_result = $conn->query("SELECT buku.id_buku, judul_buku,
     (SELECT COUNT(*) FROM copy_buku WHERE id_buku = buku.id_buku AND status_buku = 'tersedia') AS stok
 FROM buku ORDER BY judul_buku ASC");
@@ -74,184 +70,271 @@ while ($b = $buku_result->fetch_assoc()) {
         'stok' => (int)$b['stok']
     ];
 }
+
+// Ambil data copy buku tersedia per buku
+$copyBukuAll = [];
+foreach ($bookData as $id_buku => $data) {
+    $copyResult = $conn->query("SELECT no_copy_buku FROM copy_buku WHERE id_buku = '$id_buku' AND status_buku = 'tersedia' ORDER BY no_copy_buku ASC");
+    $copies = [];
+    while ($c = $copyResult->fetch_assoc()) {
+        $copies[] = $c['no_copy_buku'];
+    }
+    $copyBukuAll[$id_buku] = $copies;
+}
 ?>
 
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tambah Peminjaman Buku</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<style>
+    /* Agar checkbox dan label rapih */
+    .copy-buku-container label {
+        cursor: pointer;
+    }
+</style>
+</head>
 <body class="p-3">
 
-    <h3 style="text-align: center;">Tambah Peminjaman Buku</h3>
+<h3 style="text-align: center;">Tambah Peminjaman Buku</h3>
 
-    <form method="POST" class="container">
+<form method="POST" class="container">
 
-        <div class="mb-3 w-auto">
-            <label class="form-label">Tanggal Pinjam</label>
-            <input type="date" name="tgl_pinjam" class="form-control form-control-sm" required>
-        </div>
+    <div class="mb-3 w-auto">
+        <label class="form-label">Tanggal Pinjam</label>
+        <input type="date" name="tgl_pinjam" class="form-control form-control-sm" required />
+    </div>
 
-        <div class="mb-3 w-auto">
-            <label class="form-label">Tanggal Kembali</label>
-            <input type="date" name="tgl_kembali" class="form-control form-control-sm" required>
-        </div>
+    <div class="mb-3 w-auto">
+        <label class="form-label">Tanggal Kembali</label>
+        <input type="date" name="tgl_kembali" class="form-control form-control-sm" required />
+    </div>
 
-        <div class="mb-3 w-auto">
-            <label class="form-label">Nama Anggota</label>
-            <select name="id_anggota" class="form-select" required>
-                <option value="">-- Pilih Anggota --</option>
-                <?php while ($a = $anggota_result->fetch_assoc()) : ?>
-                    <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['nm_anggota']) ?></option>
-                <?php endwhile; ?>
-            </select>
-        </div>
+    <div class="mb-3 w-auto">
+        <label class="form-label">Nama Anggota</label>
+        <select name="id_anggota" class="form-select" required>
+            <option value="">-- Pilih Anggota --</option>
+            <?php while ($a = $anggota_result->fetch_assoc()) : ?>
+                <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['nm_anggota']) ?></option>
+            <?php endwhile; ?>
+        </select>
+    </div>
 
-        <div class="mb-3 bg-light p-3 rounded">
-            <table class="table table-bordered" id="tabel_buku">
-                <thead>
-                    <tr class="table-secondary text-center">
-                        <th>No</th>
-                        <th>ID Buku</th>
-                        <th>Judul Buku</th>
-                        <th>Jumlah</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="text-center">1</td>
-                        <td>
-                            <select name="id_buku[]" class="form-select form-select-sm id-buku" required>
-                                <option value="">PILIH</option>
-                                <?php foreach ($bookData as $id => $data): ?>
-                                    <option value="<?= htmlspecialchars($id) ?>"><?= htmlspecialchars($id) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                        <td>
-                            <select class="form-select form-select-sm judul-buku" required>
-                                <option value="">PILIH</option>
-                                <?php foreach ($bookData as $id => $data): ?>
-                                    <option value="<?= htmlspecialchars($id) ?>"><?= htmlspecialchars($data['judul']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                        <td><input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku" min="1" required></td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-danger btn-sm btn-hapus">-</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <button type="button" id="btn-tambah" class="btn btn-success btn-sm">Tambah Baris</button>
-        </div>
+    <div class="mb-3 bg-light p-3 rounded">
+        <table class="table table-bordered" id="tabel_buku">
+            <thead>
+                <tr class="table-secondary text-center">
+                    <th>No</th>
+                    <th>ID Buku</th>
+                    <th>Judul Buku</th>
+                    <th>Copy Buku (tersedia)</th>
+                    <th>Jumlah</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">1</td>
+                    <td>
+                        <select name="id_buku[]" class="form-select form-select-sm id-buku" required>
+                            <option value="">PILIH</option>
+                            <?php foreach ($bookData as $id => $data): ?>
+                                <option value="<?= htmlspecialchars($id) ?>"><?= htmlspecialchars($id) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm judul-buku" required>
+                            <option value="">PILIH</option>
+                            <?php foreach ($bookData as $id => $data): ?>
+                                <option value="<?= htmlspecialchars($id) ?>"><?= htmlspecialchars($data['judul']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                    <td>
+                        <div class="copy-buku-container" style="font-size: 0.85rem;"></div>
+                    </td>
+                    <td>
+                        <input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku" readonly value="0" min="0" required />
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-danger btn-sm btn-hapus">-</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="button" id="btn-tambah" class="btn btn-success btn-sm">Tambah Baris</button>
+    </div>
 
-        <button type="submit" class="btn btn-primary">Simpan Peminjaman</button>
-        <a href="admin.php?page=perpus_utama&panggil=peminjaman.php" class="btn btn-secondary">Batal</a>
-    </form>
+    <button type="submit" class="btn btn-primary">Simpan Peminjaman</button>
+    <a href="admin.php?page=perpus_utama&panggil=peminjaman.php" class="btn btn-secondary">Batal</a>
+</form>
 
-    <script>
-        const bookData = <?= json_encode($bookData) ?>;
-        const tableBody = document.querySelector("#tabel_buku tbody");
-        const btnTambah = document.getElementById("btn-tambah");
+<script>
+    const bookData = <?= json_encode($bookData) ?>;
+    const copyBukuData = <?= json_encode($copyBukuAll) ?>;
+    const tableBody = document.querySelector("#tabel_buku tbody");
+    const btnTambah = document.getElementById("btn-tambah");
 
-        function getSelectedBookIds() {
-            return [...document.querySelectorAll(".id-buku")].map(sel => sel.value).filter(val => val);
+    function renderCopyCheckboxes(id_buku, container) {
+        container.innerHTML = ''; // reset
+
+        if (!id_buku || !copyBukuData[id_buku] || copyBukuData[id_buku].length === 0) {
+            container.innerHTML = '<small><i>Tidak ada copy buku tersedia</i></small>';
+            return;
         }
 
-        function updateDropdownOptions() {
-            const allRows = [...document.querySelectorAll("#tabel_buku tbody tr")];
+        const copies = copyBukuData[id_buku];
+        const colCount = 3;
+        const rowCount = Math.ceil(copies.length / colCount);
 
-            // Kumpulkan semua id yang sudah dipilih di setiap baris
-            const selectedIds = allRows.map(row => row.querySelector(".id-buku").value).filter(val => val);
+        let grid = Array(rowCount).fill(null).map(() => Array(colCount).fill(null));
 
-            allRows.forEach(row => {
-                const idSelect = row.querySelector(".id-buku");
-                const judulSelect = row.querySelector(".judul-buku");
-                const currentId = idSelect.value;
+        copies.forEach((copy, i) => {
+            let row = i % rowCount;
+            let col = Math.floor(i / rowCount);
+            grid[row][col] = copy;
+        });
 
-                // Buat daftar ID yang boleh muncul di baris ini
-                const availableIds = Object.keys(bookData).filter(id => {
-                    return !selectedIds.includes(id) || id === currentId;
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.gap = '12px';
+
+        for (let col = 0; col < colCount; col++) {
+            const colDiv = document.createElement('div');
+            colDiv.style.display = 'flex';
+            colDiv.style.flexDirection = 'column';
+            colDiv.style.gap = '4px';
+
+            for (let row = 0; row < rowCount; row++) {
+                const copy = grid[row][col];
+                if (!copy) continue;
+
+                const label = document.createElement('label');
+                label.style.userSelect = 'none';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = `copy_buku[${id_buku}][]`;
+                checkbox.value = copy;
+
+                checkbox.addEventListener('change', () => {
+                    updateJumlahByCheckbox(container.closest('tr'));
                 });
 
-                // Isi dropdown ID
-                idSelect.innerHTML = `<option value="">PILIH</option>` +
-                    availableIds.map(id => {
-                        const selected = id === currentId ? 'selected' : '';
-                        return `<option value="${id}" ${selected}>${id}</option>`;
-                    }).join('');
-
-                // Isi dropdown Judul
-                judulSelect.innerHTML = `<option value="">PILIH</option>` +
-                    availableIds.map(id => {
-                        const selected = id === currentId ? 'selected' : '';
-                        return `<option value="${id}" ${selected}>${bookData[id].judul}</option>`;
-                    }).join('');
-            });
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(' ' + copy));
+                colDiv.appendChild(label);
+            }
+            wrapper.appendChild(colDiv);
         }
 
+        container.appendChild(wrapper);
+    }
 
+    function updateJumlahByCheckbox(tr) {
+        const container = tr.querySelector('.copy-buku-container');
+        const jumlahInput = tr.querySelector('.jumlah-buku');
+        if (!container || !jumlahInput) return;
 
+        const checkedCount = container.querySelectorAll('input[type=checkbox]:checked').length;
+        jumlahInput.value = checkedCount;
+    }
 
-        btnTambah.addEventListener("click", () => {
-            const rowCount = tableBody.rows.length + 1;
-            const row = tableBody.insertRow();
-            row.innerHTML = `
-                <td class="text-center">${rowCount}</td>
-                <td>
-                    <select name="id_buku[]" class="form-select form-select-sm id-buku" required>
-                        <option value="">PILIH</option>
-                        ${Object.entries(bookData).map(([id]) => `<option value="${id}">${id}</option>`).join('')}
-                    </select>
-                </td>
-                <td>
-                    <select class="form-select form-select-sm judul-buku" required>
-                        <option value="">PILIH</option>
-                        ${Object.entries(bookData).map(([id, data]) => `<option value="${id}">${data.judul}</option>`).join('')}
-                    </select>
-                </td>
-                <td><input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku" min="1" required></td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-danger btn-sm btn-hapus">-</button>
-                </td>
-            `;
+    btnTambah.addEventListener("click", () => {
+        const rowCount = tableBody.rows.length + 1;
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td class="text-center">${rowCount}</td>
+            <td>
+                <select name="id_buku[]" class="form-select form-select-sm id-buku" required>
+                    <option value="">PILIH</option>
+                    ${Object.entries(bookData).map(([id]) => `<option value="${id}">${id}</option>`).join('')}
+                </select>
+            </td>
+            <td>
+                <select class="form-select form-select-sm judul-buku" required>
+                    <option value="">PILIH</option>
+                    ${Object.entries(bookData).map(([id, data]) => `<option value="${id}">${data.judul}</option>`).join('')}
+                </select>
+            </td>
+            <td>
+                <div class="copy-buku-container" style="font-size: 0.85rem;"></div>
+            </td>
+            <td>
+                <input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku" readonly value="0" min="0" required />
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-danger btn-sm btn-hapus">-</button>
+            </td>
+        `;
+        updateDropdownOptions();
+    });
+
+    tableBody.addEventListener("change", (e) => {
+        const row = e.target.closest("tr");
+        const idSelect = row.querySelector(".id-buku");
+        const judulSelect = row.querySelector(".judul-buku");
+        const jumlahInput = row.querySelector(".jumlah-buku");
+        const copyContainer = row.querySelector(".copy-buku-container");
+
+        if (e.target.classList.contains("id-buku")) {
+            judulSelect.value = idSelect.value;
+            renderCopyCheckboxes(idSelect.value, copyContainer);
+            jumlahInput.value = 0;
             updateDropdownOptions();
-        });
+        } else if (e.target.classList.contains("judul-buku")) {
+            idSelect.value = judulSelect.value;
+            renderCopyCheckboxes(judulSelect.value, copyContainer);
+            jumlahInput.value = 0;
+            updateDropdownOptions();
+        }
+    });
 
-        tableBody.addEventListener("change", (e) => {
-            const row = e.target.closest("tr");
+    tableBody.addEventListener("click", (e) => {
+        if (e.target.classList.contains("btn-hapus")) {
+            e.target.closest("tr").remove();
+            updateNomor();
+            updateDropdownOptions();
+        }
+    });
+
+    function updateNomor() {
+        [...tableBody.rows].forEach((row, i) => {
+            row.cells[0].textContent = i + 1;
+        });
+    }
+
+    function updateDropdownOptions() {
+        const allRows = [...document.querySelectorAll("#tabel_buku tbody tr")];
+        const selectedIds = allRows.map(row => row.querySelector(".id-buku").value).filter(val => val);
+
+        allRows.forEach(row => {
             const idSelect = row.querySelector(".id-buku");
             const judulSelect = row.querySelector(".judul-buku");
-            const jumlahInput = row.querySelector(".jumlah-buku");
+            const currentId = idSelect.value;
 
-            if (e.target.classList.contains("id-buku")) {
-                judulSelect.value = idSelect.value;
-            } else if (e.target.classList.contains("judul-buku")) {
-                idSelect.value = judulSelect.value;
-            }
-
-            const id = idSelect.value;
-            const stok = bookData[id]?.stok || 0;
-            jumlahInput.max = stok;
-            jumlahInput.value = jumlahInput.value > stok ? stok : jumlahInput.value;
-            jumlahInput.placeholder = stok > 0 ? "max: " + stok : "stok habis";
-            jumlahInput.readOnly = stok === 0;
-
-            updateDropdownOptions();
-        });
-
-        tableBody.addEventListener("click", (e) => {
-            if (e.target.classList.contains("btn-hapus")) {
-                e.target.closest("tr").remove();
-                updateNomor();
-                updateDropdownOptions();
-            }
-        });
-
-        function updateNomor() {
-            [...tableBody.rows].forEach((row, i) => {
-                row.cells[0].textContent = i + 1;
+            const availableIds = Object.keys(bookData).filter(id => {
+                return !selectedIds.includes(id) || id === currentId;
             });
-        }
-    </script>
+
+            idSelect.innerHTML = `<option value="">PILIH</option>` +
+                availableIds.map(id => {
+                    const selected = id === currentId ? 'selected' : '';
+                    return `<option value="${id}" ${selected}>${id}</option>`;
+                }).join('');
+
+            judulSelect.innerHTML = `<option value="">PILIH</option>` +
+                availableIds.map(id => {
+                    const selected = id === currentId ? 'selected' : '';
+                    return `<option value="${id}" ${selected}>${bookData[id].judul}</option>`;
+                }).join('');
+        });
+    }
+</script>
 
 </body>
-
 </html>
