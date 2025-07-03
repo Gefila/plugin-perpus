@@ -59,7 +59,7 @@ while ($row = $result->fetch_assoc()) {
 <table class="table table-bordered table-striped">
     <thead class="table-dark text-center">
         <tr>
-            <th>No</th>
+            <th>No123</th>
             <th>No Peminjaman</th>
             <th>Tgl Pinjam</th>
             <th>Tgl Kembali</th>
