@@ -1,4 +1,7 @@
 <?php
+// Koneksi ke database
+// Pastikan variabel $conn sudah tersedia dari file utama plugin
+
 // Proses hapus data pengembalian
 if (isset($_GET['hapus'])) {
     $idHapus = $conn->real_escape_string($_GET['hapus']);
@@ -19,7 +22,9 @@ if (isset($_GET['hapus'])) {
 // Query gabungan data pengembalian dan detail buku
 $sql = "
     SELECT 
-        p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian, pm.id_anggota, a.nm_anggota,
+        p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian, 
+        pm.id_anggota, a.nm_anggota,
+        pm.tgl_harus_kembali,
         b.id_buku, b.judul_buku,
         GROUP_CONCAT(bs.no_copy_buku SEPARATOR ', ') AS no_copy,
         COUNT(bs.no_copy_buku) AS jumlah
@@ -29,7 +34,7 @@ $sql = "
     LEFT JOIN bisa bs ON p.no_pengembalian = bs.no_pengembalian
     LEFT JOIN copy_buku cb ON bs.no_copy_buku = cb.no_copy_buku
     LEFT JOIN buku b ON cb.id_buku = b.id_buku
-    GROUP BY p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian, pm.id_anggota, a.nm_anggota, b.id_buku, b.judul_buku
+    GROUP BY p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian, pm.id_anggota, a.nm_anggota, pm.tgl_harus_kembali, b.id_buku, b.judul_buku
     ORDER BY p.no_pengembalian ASC
 ";
 
@@ -60,6 +65,8 @@ while ($row = $result->fetch_assoc()) {
             <th>ID - Judul Buku</th>
             <th>No Copy Buku</th>
             <th>Jumlah Kembali</th>
+            <th>Tanggal Kembali</th>
+            <th>Status</th>
             <th>Aksi</th>
         </tr>
     </thead>
@@ -75,18 +82,29 @@ while ($row = $result->fetch_assoc()) {
                     <td class="text-center"><?= $first ? htmlspecialchars($item['no_pengembalian']) : '' ?></td>
                     <td class="text-center"><?= $first ? htmlspecialchars($item['id_anggota']) : '' ?></td>
                     <td><?= $first ? htmlspecialchars($item['nm_anggota']) : '' ?></td>
-                    <td>
-                        <?= htmlspecialchars($item['id_buku']) ?> - <?= htmlspecialchars($item['judul_buku']) ?>
-                    </td>
+                    <td><?= htmlspecialchars($item['id_buku']) ?> - <?= htmlspecialchars($item['judul_buku']) ?></td>
                     <td><?= htmlspecialchars($item['no_copy']) ?></td>
                     <td class="text-center"><?= $item['jumlah'] ?></td>
-                    <td class="text-center">
-                        <?php if ($first): ?>
+
+                    <?php if ($first): ?>
+                        <td class="text-center"><?= htmlspecialchars($item['tgl_pengembalian']) ?></td>
+                        <td class="text-center">
+                            <?php
+                                $tglKembali = strtotime($item['tgl_pengembalian']);
+                                $tglHarusKembali = strtotime($item['tgl_harus_kembali']);
+                                if ($tglKembali > $tglHarusKembali) {
+                                    echo "<span class='badge bg-danger'>Terlambat</span>";
+                                } else {
+                                    echo "<span class='badge bg-success'>Tepat Waktu</span>";
+                                }
+                            ?>
+                        </td>
+                        <td class="text-center">
                             <a href="admin.php?page=perpus_utama&panggil=pengembalian.php&hapus=<?= urlencode($item['no_pengembalian']) ?>"
                                 class="btn btn-danger btn-sm"
                                 onclick="return confirm('Yakin ingin menghapus data ini?')">Hapus</a>
-                        <?php endif; ?>
-                    </td>
+                        </td>
+                    <?php endif; ?>
                 </tr>
         <?php
                 $first = false;

@@ -62,7 +62,7 @@ while ($row = $result->fetch_assoc()) {
             <th>No</th>
             <th>No Peminjaman</th>
             <th>Tgl Pinjam</th>
-            <th>Tgl Kembali</th>
+            <th>Tgl Harus Kembali</th>
             <th>ID Anggota</th>
             <th>Nama Anggota</th>
             <th>ID - Judul Buku</th>
