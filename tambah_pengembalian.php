@@ -1,6 +1,5 @@
 <?php
-// Pastikan koneksi $conn sudah tersedia
-
+// Koneksi dan helper generate kode
 function generateNoPengembalian($conn) {
     $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_pengembalian, 3) AS UNSIGNED)) AS max_num FROM pengembalian");
     $row = $result->fetch_assoc();
@@ -8,74 +7,64 @@ function generateNoPengembalian($conn) {
     return "PG" . str_pad($next, 4, '0', STR_PAD_LEFT);
 }
 
-// Simpan data pengembalian
+// Simpan pengembalian
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $no_pengembalian = generateNoPengembalian($conn);
-    $no_peminjaman = $_POST['no_peminjaman'];
     $tgl_pengembalian = $_POST['tgl_pengembalian'];
+    $no_peminjaman = $_POST['no_peminjaman'];
+    $no_pengembalian = generateNoPengembalian($conn);
 
-    $conn->query("INSERT INTO pengembalian (no_pengembalian, no_peminjaman, tgl_pengembalian) 
-                  VALUES ('$no_pengembalian', '$no_peminjaman', '$tgl_pengembalian')");
+    $conn->query("INSERT INTO pengembalian (no_pengembalian, no_peminjaman, tgl_pengembalian) VALUES ('$no_pengembalian', '$no_peminjaman', '$tgl_pengembalian')");
 
-    if (!empty($_POST['copy_buku'])) {
-        foreach ($_POST['copy_buku'] as $no_copy) {
-            $conn->query("INSERT INTO bisa (no_pengembalian, no_copy_buku, jml_kembali) 
-                          VALUES ('$no_pengembalian', '$no_copy', 1)");
-            $conn->query("UPDATE copy_buku SET status_buku = 'tersedia' WHERE no_copy_buku = '$no_copy'");
-        }
+    foreach ($_POST['copy_buku'] as $no_copy) {
+        $conn->query("INSERT INTO bisa (no_pengembalian, no_copy_buku) VALUES ('$no_pengembalian', '$no_copy')");
+        $conn->query("UPDATE copy_buku SET status_buku = 'tersedia' WHERE no_copy_buku = '$no_copy'");
+    }
+
+    // Hitung apakah telat
+    $cek = $conn->query("SELECT tgl_harus_kembali FROM peminjaman WHERE no_peminjaman = '$no_peminjaman'");
+    $tglHarusKembali = $cek->fetch_assoc()['tgl_harus_kembali'];
+
+    $tarif_denda = (int)$_POST['tarif_denda'];
+    $alasan_denda = $_POST['alasan_denda'];
+    if ($tgl_pengembalian > $tglHarusKembali && $tarif_denda > 0) {
+        $no_denda = "DN" . time();
+        $tgl_denda = date('Y-m-d');
+        $conn->query("INSERT INTO denda (no_denda, tgl_denda, tarif_denda, alasan_denda, no_pengembalian) VALUES ('$no_denda', '$tgl_denda', '$tarif_denda', '$alasan_denda', '$no_pengembalian')");
     }
 
     echo "<script>alert('Pengembalian berhasil disimpan!'); window.location.href='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
     exit;
 }
 
-// Ambil data anggota
-$anggota_result = $conn->query("SELECT id_anggota, nm_anggota FROM anggota");
-
-// Ambil peminjaman yang masih ada copy belum dikembalikan
-$peminjaman_result = $conn->query("
-    SELECT p.no_peminjaman, p.id_anggota, p.tgl_harus_kembali
-    FROM peminjaman p
-    WHERE EXISTS (
-        SELECT 1 FROM dapat d
-        JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
-        WHERE d.no_peminjaman = p.no_peminjaman
-        AND d.no_copy_buku NOT IN (
-            SELECT no_copy_buku FROM bisa
-        )
-    )
-");
-
-$peminjamanData = [];
-while ($row = $peminjaman_result->fetch_assoc()) {
-    $peminjamanData[$row['id_anggota']][] = $row;
+// Data anggota dan peminjaman
+$anggota = $conn->query("SELECT id_anggota, nm_anggota FROM anggota ORDER BY nm_anggota ASC");
+$peminjaman = $conn->query("SELECT no_peminjaman, id_anggota, tgl_harus_kembali FROM peminjaman");
+$data_peminjaman = [];
+while ($p = $peminjaman->fetch_assoc()) {
+    $data_peminjaman[$p['id_anggota']][] = $p;
 }
 
-// Ambil copy buku yang belum dikembalikan
-$detail_query = $conn->query("
+// Copy buku yang belum dikembalikan
+$copy = $conn->query("
     SELECT d.no_peminjaman, cb.no_copy_buku, b.id_buku, b.judul_buku
     FROM dapat d
     JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
     JOIN buku b ON cb.id_buku = b.id_buku
-    WHERE d.no_copy_buku NOT IN (
-        SELECT no_copy_buku FROM bisa
-    )
+    WHERE d.no_copy_buku NOT IN (SELECT no_copy_buku FROM bisa)
 ");
-
-$detailBuku = [];
-while ($row = $detail_query->fetch_assoc()) {
-    $detailBuku[$row['no_peminjaman']][] = $row;
+$copy_data = [];
+while ($c = $copy->fetch_assoc()) {
+    $copy_data[$c['no_peminjaman']][] = $c;
 }
 ?>
 
 <h3>Tambah Pengembalian Buku</h3>
-
 <form method="POST">
     <div class="mb-3">
         <label>Nama Anggota</label>
-        <select name="id_anggota" id="anggotaSelect" class="form-select" required onchange="filterPeminjaman()">
+        <select name="id_anggota" id="anggotaSelect" class="form-select" onchange="filterPeminjaman()" required>
             <option value="">-- Pilih Anggota --</option>
-            <?php while ($a = $anggota_result->fetch_assoc()): ?>
+            <?php while ($a = $anggota->fetch_assoc()): ?>
                 <option value="<?= $a['id_anggota'] ?>"><?= $a['id_anggota'] ?> - <?= $a['nm_anggota'] ?></option>
             <?php endwhile; ?>
         </select>
@@ -83,7 +72,7 @@ while ($row = $detail_query->fetch_assoc()) {
 
     <div class="mb-3">
         <label>Nomor Peminjaman</label>
-        <select name="no_peminjaman" id="peminjamanSelect" class="form-select" required onchange="updateTanggalDanStatus(); tampilkanCopyBuku()">
+        <select name="no_peminjaman" id="peminjamanSelect" class="form-select" onchange="tampilkanTabel(); updateStatus();" required>
             <option value="">-- Pilih Nomor Peminjaman --</option>
         </select>
     </div>
@@ -95,7 +84,7 @@ while ($row = $detail_query->fetch_assoc()) {
 
     <div class="mb-3">
         <label>Tanggal Pengembalian</label>
-        <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="form-control" required onchange="updateStatus()">
+        <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="form-control" onchange="updateStatus()" required>
     </div>
 
     <div class="mb-3">
@@ -103,112 +92,98 @@ while ($row = $detail_query->fetch_assoc()) {
         <input type="text" id="statusPengembalian" class="form-control" readonly>
     </div>
 
-    <div class="mb-3">
+    <div class="mb-3 bg-light p-3 rounded">
         <table class="table table-bordered">
-            <thead>
-                <tr class="table-secondary text-center">
-                    <th>No</th>
-                    <th>ID Buku</th>
-                    <th>Judul Buku</th>
-                    <th>No Copy Buku</th>
-                    <th>Pilih Kembali</th>
-                </tr>
+            <thead class="table-secondary text-center">
+                <tr><th>No</th><th>ID Buku</th><th>Judul Buku</th><th>No Copy Buku</th></tr>
             </thead>
-            <tbody id="copyBukuTableBody">
-                <tr><td colspan="5" class="text-danger text-center">Silakan pilih anggota dan nomor peminjaman</td></tr>
+            <tbody id="tabelBuku">
+                <tr><td colspan="4" class="text-center text-danger">Silakan pilih anggota dan peminjaman.</td></tr>
             </tbody>
         </table>
     </div>
 
+    <div class="mb-3">
+        <label>Denda (Rp)</label>
+        <input type="text" id="tarif_denda_display" class="form-control" value="0">
+        <input type="hidden" name="tarif_denda" id="tarif_denda" value="0">
+    </div>
+
+    <div class="mb-3">
+        <label>Alasan Denda</label>
+        <textarea name="alasan_denda" class="form-control"></textarea>
+    </div>
+
     <button type="submit" class="btn btn-primary">Simpan Pengembalian</button>
-    <a href="admin.php?page=perpus_utama&panggil=pengembalian.php" class="btn btn-secondary">Batal</a>
 </form>
 
 <script>
-const peminjamanData = <?= json_encode($peminjamanData) ?>;
-const detailBuku = <?= json_encode($detailBuku) ?>;
+const dataPeminjaman = <?= json_encode($data_peminjaman) ?>;
+const dataCopy = <?= json_encode($copy_data) ?>;
 
 function filterPeminjaman() {
-    const anggotaId = document.getElementById('anggotaSelect').value;
-    const pemSelect = document.getElementById('peminjamanSelect');
-    pemSelect.innerHTML = '<option value="">-- Pilih Nomor Peminjaman --</option>';
+    const anggota = document.getElementById('anggotaSelect').value;
+    const select = document.getElementById('peminjamanSelect');
+    select.innerHTML = '<option value="">-- Pilih Nomor Peminjaman --</option>';
 
-    if (anggotaId && peminjamanData[anggotaId]) {
-        peminjamanData[anggotaId].forEach(p => {
-            pemSelect.innerHTML += `<option value="${p.no_peminjaman}">${p.no_peminjaman}</option>`;
+    if (anggota && dataPeminjaman[anggota]) {
+        dataPeminjaman[anggota].forEach(p => {
+            if (dataCopy[p.no_peminjaman]) {
+                select.innerHTML += `<option value="${p.no_peminjaman}" data-tgl="${p.tgl_harus_kembali}">${p.no_peminjaman}</option>`;
+            }
         });
     }
-
-    updateTanggalDanStatus();
-    tampilkanCopyBuku();
-}
-
-function updateTanggalDanStatus() {
-    const pemSelect = document.getElementById('peminjamanSelect');
-    const noPeminjaman = pemSelect.value;
-    const tglHarusKembaliInput = document.getElementById('tglHarusKembali');
-    const tglPengembalianInput = document.getElementById('tglPengembalian');
-    const statusInput = document.getElementById('statusPengembalian');
-
-    if (!noPeminjaman) {
-        tglHarusKembaliInput.value = '';
-        statusInput.value = '';
-        return;
-    }
-
-    // Cari tanggal harus kembali dari peminjamanData
-    let tglHarusKembali = '';
-    outerLoop:
-    for (const anggota in peminjamanData) {
-        for (const p of peminjamanData[anggota]) {
-            if (p.no_peminjaman === noPeminjaman) {
-                tglHarusKembali = p.tgl_harus_kembali;
-                break outerLoop;
-            }
-        }
-    }
-
-    tglHarusKembaliInput.value = tglHarusKembali;
-
+    tampilkanTabel();
     updateStatus();
 }
 
-function updateStatus() {
-    const tglHarusKembali = document.getElementById('tglHarusKembali').value;
-    const tglPengembalian = document.getElementById('tglPengembalian').value;
-    const statusInput = document.getElementById('statusPengembalian');
-
-    if (tglPengembalian && tglHarusKembali) {
-        statusInput.value = (tglPengembalian > tglHarusKembali) ? 'Telat' : 'Tepat Waktu';
-        statusInput.style.color = (tglPengembalian > tglHarusKembali) ? 'red' : 'green';
-    } else {
-        statusInput.value = '';
-        statusInput.style.color = '';
-    }
-}
-
-function tampilkanCopyBuku() {
+function tampilkanTabel() {
     const noPeminjaman = document.getElementById('peminjamanSelect').value;
-    const tbody = document.getElementById('copyBukuTableBody');
+    const tbody = document.getElementById('tabelBuku');
     tbody.innerHTML = '';
 
-    if (!noPeminjaman || !detailBuku[noPeminjaman]) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Tidak ada copy buku yang belum dikembalikan.</td></tr>';
+    if (!noPeminjaman || !dataCopy[noPeminjaman]) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Tidak ada copy buku untuk peminjaman ini.</td></tr>';
         return;
     }
 
-    detailBuku[noPeminjaman].forEach((buku, index) => {
-        tbody.innerHTML += `
-            <tr>
-                <td class="text-center">${index + 1}</td>
-                <td>${buku.id_buku}</td>
-                <td>${buku.judul_buku}</td>
-                <td>${buku.no_copy_buku}</td>
-                <td class="text-center">
-                    <input type="checkbox" name="copy_buku[]" value="${buku.no_copy_buku}">
-                </td>
-            </tr>
-        `;
+    dataCopy[noPeminjaman].forEach((b, i) => {
+        tbody.innerHTML += `<tr>
+            <td class="text-center">${i + 1}</td>
+            <td>${b.id_buku}</td>
+            <td>${b.judul_buku}</td>
+            <td><label><input type="checkbox" name="copy_buku[]" value="${b.no_copy_buku}"> ${b.no_copy_buku}</label></td>
+        </tr>`;
     });
 }
+
+function updateStatus() {
+    const tglHarus = document.getElementById('peminjamanSelect').selectedOptions[0]?.dataset?.tgl || '';
+    const tglKembali = document.getElementById('tglPengembalian').value;
+    document.getElementById('tglHarusKembali').value = tglHarus;
+
+    const status = document.getElementById('statusPengembalian');
+    if (tglKembali && tglHarus) {
+        status.value = tglKembali > tglHarus ? 'Telat' : 'Tepat Waktu';
+        status.style.color = tglKembali > tglHarus ? 'red' : 'green';
+    } else {
+        status.value = '';
+        status.style.color = '';
+    }
+}
+
+// Format denda
+const displayInput = document.getElementById('tarif_denda_display');
+const hiddenInput = document.getElementById('tarif_denda');
+
+displayInput.addEventListener('input', () => {
+    hiddenInput.value = displayInput.value.replace(/[^\d]/g, '') || 0;
+});
+displayInput.addEventListener('blur', () => {
+    let angka = displayInput.value.replace(/[^\d]/g, '');
+    displayInput.value = angka ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(angka) : '';
+});
+displayInput.addEventListener('focus', () => {
+    displayInput.value = hiddenInput.value === '0' ? '' : hiddenInput.value;
+});
 </script>
