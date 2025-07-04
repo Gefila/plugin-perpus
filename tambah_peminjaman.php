@@ -4,53 +4,75 @@ function generateNoPeminjaman($conn) {
     $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_peminjaman, 3) AS UNSIGNED)) AS max_num FROM peminjaman");
     $row = $result->fetch_assoc();
     $next = (int)$row['max_num'] + 1;
-    return "PJ" . str_pad($next, 4, '0', STR_PAD_LEFT);
+    return "PJ" . $next;
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $tgl_pinjam = $_POST['tgl_pinjam'];
     $tgl_kembali = $_POST['tgl_kembali'];
     $id_anggota = $_POST['id_anggota'];
-    $no_peminjaman = generateNoPeminjaman($conn);
+
+    if ($tgl_kembali <= $tgl_pinjam) {
+        echo "<script>alert('Tanggal kembali harus lebih besar dari tanggal pinjam!'); window.history.back();</script>";
+        exit;
+    }
 
     if (!isset($_POST['copy_buku']) || !is_array($_POST['copy_buku'])) {
         echo "<script>alert('Pilih minimal satu copy buku yang tersedia!'); window.history.back();</script>";
         exit;
     }
 
-    // Hitung total copy buku yang dipinjam
-    $totalDipinjam = 0;
-    foreach ($_POST['copy_buku'] as $id_buku => $copies) {
-        $totalDipinjam += count($copies);
+    // Cek duplikasi copy buku
+    $semua_copy = [];
+    foreach ($_POST['copy_buku'] as $copies) {
+        foreach ($copies as $no_copy) {
+            if (in_array($no_copy, $semua_copy)) {
+                echo "<script>alert('Terdeteksi copy buku yang sama dipilih lebih dari satu kali!'); window.history.back();</script>";
+                exit;
+            }
+            $semua_copy[] = $no_copy;
+        }
     }
 
-    if ($totalDipinjam < 1) {
-        echo "<script>alert('Pilih minimal satu copy buku!'); window.history.back();</script>";
-        exit;
-    }
+    $no_peminjaman = generateNoPeminjaman($conn);
 
-    $query = "INSERT INTO peminjaman (no_peminjaman, tgl_peminjaman, tgl_harus_kembali, id_anggota)
-              VALUES ('$no_peminjaman', '$tgl_pinjam', '$tgl_kembali', '$id_anggota')";
+    $conn->begin_transaction();
+    try {
+        $stmt = $conn->prepare("INSERT INTO peminjaman (no_peminjaman, tgl_peminjaman, tgl_harus_kembali, id_anggota) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $no_peminjaman, $tgl_pinjam, $tgl_kembali, $id_anggota);
+        $stmt->execute();
 
-    if ($conn->query($query)) {
+        $cek_stmt = $conn->prepare("SELECT status_buku FROM copy_buku WHERE no_copy_buku = ? AND id_buku = ?");
+        $update_stmt = $conn->prepare("UPDATE copy_buku SET status_buku = 'dipinjam' WHERE no_copy_buku = ?");
+        $insert_stmt = $conn->prepare("INSERT INTO dapat (no_peminjaman, no_copy_buku) VALUES (?, ?)");
+
         foreach ($_POST['copy_buku'] as $id_buku => $copies) {
             foreach ($copies as $no_copy) {
-                $cek = $conn->query("SELECT status_buku FROM copy_buku WHERE no_copy_buku = '$no_copy' AND id_buku = '$id_buku'");
-                $data = $cek->fetch_assoc();
+                $cek_stmt->bind_param("ss", $no_copy, $id_buku);
+                $cek_stmt->execute();
+                $result = $cek_stmt->get_result();
+                $data = $result->fetch_assoc();
+
                 if (!$data || $data['status_buku'] != 'tersedia') {
-                    echo "<script>alert('Copy buku $no_copy untuk buku $id_buku sudah tidak tersedia.'); window.history.back();</script>";
-                    exit;
+                    throw new Exception("Copy buku $no_copy untuk buku $id_buku sudah tidak tersedia.");
                 }
 
-                $conn->query("UPDATE copy_buku SET status_buku = 'dipinjam' WHERE no_copy_buku = '$no_copy'");
-                $conn->query("INSERT INTO dapat (no_peminjaman, no_copy_buku, jml_pinjam) VALUES ('$no_peminjaman', '$no_copy', 1)");
+                $update_stmt->bind_param("s", $no_copy);
+                $update_stmt->execute();
+
+                $insert_stmt->bind_param("ss", $no_peminjaman, $no_copy);
+                $insert_stmt->execute();
             }
         }
 
+        $conn->commit();
+
         echo "<script>alert('Peminjaman berhasil disimpan!'); window.location.href='admin.php?page=perpus_utama&panggil=peminjaman.php';</script>";
         exit;
-    } else {
-        echo "<script>alert('Gagal menyimpan data: " . $conn->error . "'); window.history.back();</script>";
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo "<script>alert('Gagal menyimpan data: " . addslashes($e->getMessage()) . "'); window.history.back();</script>";
         exit;
     }
 }
@@ -81,6 +103,7 @@ foreach ($bookData as $id_buku => $data) {
     }
     $copyBukuAll[$id_buku] = $copies;
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -103,15 +126,16 @@ foreach ($bookData as $id_buku => $data) {
 
 <form method="POST" class="container">
 
-    <div class="mb-3 w-auto">
-        <label class="form-label">Tanggal Pinjam</label>
-        <input type="date" name="tgl_pinjam" class="form-control form-control-sm" required />
-    </div>
+<div class="mb-3" style="max-width: 200px;">
+    <label class="form-label">Tanggal Pinjam</label>
+    <input type="date" name="tgl_pinjam" id="tgl_pinjam" class="form-control form-control-sm" required />
+</div>
 
-    <div class="mb-3 w-auto">
-        <label class="form-label">Tanggal Kembali</label>
-        <input type="date" name="tgl_kembali" class="form-control form-control-sm" required />
-    </div>
+<div class="mb-3" style="max-width: 200px;">
+    <label class="form-label">Tanggal Kembali</label>
+    <input type="date" name="tgl_kembali" id="tgl_kembali" class="form-control form-control-sm" required />
+</div>
+
 
     <div class="mb-3 w-auto">
         <label class="form-label">Nama Anggota</label>
@@ -178,6 +202,16 @@ foreach ($bookData as $id_buku => $data) {
     const copyBukuData = <?= json_encode($copyBukuAll) ?>;
     const tableBody = document.querySelector("#tabel_buku tbody");
     const btnTambah = document.getElementById("btn-tambah");
+
+    const tglPinjam = document.getElementById('tgl_pinjam');
+    const tglKembali = document.getElementById('tgl_kembali');
+
+    tglPinjam.addEventListener('change', () => {
+        tglKembali.min = tglPinjam.value;
+        if (tglKembali.value < tglPinjam.value) {
+            tglKembali.value = tglPinjam.value;
+        }
+    });
 
     function renderCopyCheckboxes(id_buku, container) {
         container.innerHTML = ''; // reset
