@@ -163,12 +163,13 @@ foreach ($bookData as $id_buku => $data) {
                 <tr>
                     <td class="text-center">1</td>
                     <td>
-                        <select name="id_buku[]" class="form-select form-select-sm id-buku" required>
-                            <option value="">PILIH</option>
-                            <?php foreach ($bookData as $id => $data): ?>
-                                <option value="<?= htmlspecialchars($id) ?>"><?= htmlspecialchars($id) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                    <select class="form-select form-select-sm id-buku" disabled>
+                        <option value="">Id Buku</option>
+                        <?php foreach ($bookData as $id => $data): ?>
+                            <option value="<?= htmlspecialchars($id) ?>"><?= htmlspecialchars($id) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="hidden" name="id_buku[]" class="id-buku-hidden" />
                     </td>
                     <td>
                         <select class="form-select form-select-sm judul-buku" required>
@@ -208,9 +209,9 @@ foreach ($bookData as $id_buku => $data) {
 
     tglPinjam.addEventListener('change', () => {
         tglKembali.min = tglPinjam.value;
-        if (tglKembali.value < tglPinjam.value) {
-            tglKembali.value = tglPinjam.value;
-        }
+        // if (tglKembali.value < tglPinjam.value) {
+        //     tglKembali.value = tglPinjam.value;
+        // }
     });
 
     function renderCopyCheckboxes(id_buku, container) {
@@ -314,10 +315,12 @@ foreach ($bookData as $id_buku => $data) {
         const judulSelect = row.querySelector(".judul-buku");
         const jumlahInput = row.querySelector(".jumlah-buku");
         const copyContainer = row.querySelector(".copy-buku-container");
+        const idHidden = row.querySelector(".id-buku-hidden");
 
-        if (e.target.classList.contains("id-buku")) {
-            judulSelect.value = idSelect.value;
-            renderCopyCheckboxes(idSelect.value, copyContainer);
+        if (e.target.classList.contains("judul-buku")) {
+            idSelect.value = judulSelect.value;
+            idHidden.value = judulSelect.value;
+            renderCopyCheckboxes(judulSelect.value, copyContainer);
             jumlahInput.value = 0;
             updateDropdownOptions();
         } else if (e.target.classList.contains("judul-buku")) {
