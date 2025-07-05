@@ -17,6 +17,6 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-danger mt-2">CETAK</button>
+        <button type="submit" class="btn btn-primary mt-2">TAMPILKAN</button>
     </form>
 </div>

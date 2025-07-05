@@ -18,7 +18,6 @@ $query = "
     SELECT 
         pg.no_pengembalian,
         pg.tgl_pengembalian,
-        pj.no_peminjaman,
         a.id_anggota,
         a.nm_anggota,
         b.id_buku,
@@ -43,6 +42,8 @@ $result = $conn->query($query);
 <html>
 <head>
     <title>Laporan Pengembalian Buku</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
 <style>
     body {
         font-family: Arial;
@@ -104,6 +105,10 @@ $result = $conn->query($query);
             padding: 0;
             background: #fff;
         }
+
+        #btn-cetak {
+            display: none;
+        }
     }
 </style>
 
@@ -119,10 +124,10 @@ $result = $conn->query($query);
             <tr>
                 <th>No</th>
                 <th>No Pengembalian</th>
-                <th>Tanggal</th>
-                <th>No Peminjaman</th>
+                <th>Tanggal Pengembalian</th>
                 <th>ID Anggota</th>
                 <th>Nama Anggota</th>
+                <th>ID Buku</th>
                 <th>Judul Buku</th>
                 <th>Jumlah</th>
             </tr>
@@ -134,9 +139,9 @@ $result = $conn->query($query);
                         <td><?= $no++ ?></td>
                         <td><?= $row['no_pengembalian'] ?></td>
                         <td><?= date('d-m-Y', strtotime($row['tgl_pengembalian'])) ?></td>
-                        <td><?= $row['no_peminjaman'] ?></td>
                         <td><?= $row['id_anggota'] ?></td>
                         <td><?= $row['nm_anggota'] ?></td>
+                        <td><?= $row['id_buku'] ?></td>
                         <td><?= $row['judul_buku'] ?></td>
                         <td><?= $row['jumlah'] ?></td>
                     </tr>
@@ -149,5 +154,17 @@ $result = $conn->query($query);
         </tbody>
     </table>
 
+    <?php if ($result && $result->num_rows > 0): ?>
+        <div style="text-align:right; margin-top:20px;">
+            <button id="btn-cetak" onclick="window.print()" class="btn btn-primary">Cetak</button>
+        </div>
+    <?php endif; ?>
+</div>
+<script>
+    // window.print() hanya dijalankan saat tombol diklik
+    window.addEventListener('afterprint', function () {
+        window.close();
+    });
+</script>
 </body>
 </html>

@@ -38,6 +38,7 @@ $result = $conn->query($query);
 <html>
 <head>
     <title>Laporan Peminjaman Buku</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <style>
         @page {
             size: A4 portrait;
@@ -87,6 +88,10 @@ $result = $conn->query($query);
                 width: 210mm;
                 height: 297mm;
             }
+            #btn-cetak {
+                display: none;
+
+            }
         }
     </style>
 </head>
@@ -131,12 +136,17 @@ $result = $conn->query($query);
         <?php endif; ?>
         </tbody>
     </table>
+    <?php if ($result && $result->num_rows > 0): ?>
+        <div style="text-align:center; margin-top:20px;">
+            <button id="btn-cetak" onclick="window.print()" class="btn btn-danger">Cetak</button>
+        </div>
+    <?php endif; ?>
 </div>
 
 <script>
-    window.onload = function () {
-        window.print();
-    };
+    // window.onload = function () {
+    //     window.print();
+    // };
     window.addEventListener('afterprint', function () {
         window.close();
     });
