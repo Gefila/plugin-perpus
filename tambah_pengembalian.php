@@ -3,9 +3,9 @@
 function generateNoPengembalian($conn) {
     $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_pengembalian, 3) AS UNSIGNED)) AS max_num FROM pengembalian");
     $row = $result->fetch_assoc();
-    return "PG" . ((int)$row['max_num'] + 1);
+    $nextNumber = (int)$row['max_num'] + 1;
+    return "PG" . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 }
-
 function generateNoDenda($conn) {
     $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_denda, 3) AS UNSIGNED)) AS max_num FROM denda");
     $row = $result->fetch_assoc();
