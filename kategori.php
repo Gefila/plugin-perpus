@@ -9,6 +9,15 @@
 .table-responsive::-webkit-scrollbar-thumb:hover {
     background: #888;
 }
+
+.table-container {
+    width: 90%;
+    overflow-x: auto;
+}
+
+.card, .table-responsive table {
+    min-width: 100%;
+}
 </style>
 
 <?php
@@ -29,9 +38,8 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
 ?>
 
 <!-- Container scrollable -->
-<div class="container-fluid mt-4" style="overflow-x: auto;">
-    <!-- Card mengikuti lebar tabel -->
-    <div class="card shadow rounded-4" style="min-width: 1300px; width: max-content;">
+<div class="container-fluid mt-4 table-container">
+    <div class="card shadow rounded-4">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center rounded-top-4">
             <h4 class="mb-0">
                 <i class="fa fa-list-alt me-2"></i>Daftar Kategori
@@ -42,13 +50,13 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover align-middle table-bordered" style="min-width: 1200px; width: max-content;">
+                <table class="table table-hover align-middle table-bordered">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 50px;">#</th>
-                            <th style="min-width: 150px;">ID Kategori</th>
-                            <th style="min-width: 300px;">Nama Kategori</th>
-                            <th style="min-width: 200px;">Aksi</th>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 20%;">ID Kategori</th>
+                            <th style="width: 50%;">Nama Kategori</th>
+                            <th style="width: 25%;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
