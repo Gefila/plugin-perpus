@@ -31,7 +31,7 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
 <!-- Container scrollable -->
 <div class="container-fluid mt-4" style="overflow-x: auto;">
     <!-- Card mengikuti lebar tabel -->
-    <div class="card shadow rounded-4" style="min-width: 1200px; width: max-content;">
+    <div class="card shadow rounded-4" style="min-width: 1300px; width: max-content;">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center rounded-top-4">
             <h4 class="mb-0">
                 <i class="fa fa-list-alt me-2"></i>Daftar Kategori
@@ -42,7 +42,7 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover align-middle table-bordered" style="min-width: 1000px; width: max-content;">
+                <table class="table table-hover align-middle table-bordered" style="min-width: 1200px; width: max-content;">
                     <thead class="table-light">
                         <tr>
                             <th style="width: 50px;">#</th>
