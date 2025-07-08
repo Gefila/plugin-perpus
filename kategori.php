@@ -53,7 +53,7 @@ $result = $conn->query("SELECT * FROM kategori ORDER BY id_kategori");
                 <table class="table table-hover align-middle table-bordered">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 5%;">#</th>
+                            <th style="width: 5%;">No</th>
                             <th style="width: 20%;">ID Kategori</th>
                             <th style="width: 50%;">Nama Kategori</th>
                             <th style="width: 25%;">Aksi</th>
