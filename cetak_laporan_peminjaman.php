@@ -85,7 +85,7 @@ $result = $conn->query($query);
 
         @media print {
             html, body {
-                width: 210mm;
+                width: 230mm;
                 height: 297mm;
             }
             #btn-cetak {
