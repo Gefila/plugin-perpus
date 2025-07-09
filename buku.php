@@ -72,11 +72,17 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
     .book-card {
         background-color: #fff;
         border-radius: 8px;
+        position: relative;
+        padding-left: 15px;
+        margin-left: 10px;
+        border-left: 4px solid #4b7bec; /* Garis biru sama untuk semua */
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         padding: 15px;
         margin-bottom: 15px;
         transition: transform 0.2s;
     }
+
+    
 
     .book-card:hover {
         transform: translateY(-2px);
@@ -87,6 +93,36 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
         font-weight: bold;
         font-size: 1.1rem;
         color: #333;
+    }
+
+    .category-container {
+        margin-bottom: 30px;
+    }
+
+    .category-header {
+        background-color: #e3f2fd; /* Warna biru muda */
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 4px solid #4b7bec; /* Garis biru */
+    }
+
+    .category-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .category-badge {
+        background-color: #4b7bec; /* Warna biru */
+        color: white;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.85rem;
     }
 
     .book-author {
@@ -235,6 +271,6 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
 
     <!-- Pagination Info -->
     <div class="pagination-info text-center">
-        Menampilkan <?= $result->num_rows ?> buku
+        Total <?= $result->num_rows ?> Jenis buku
     </div>
 </div>
