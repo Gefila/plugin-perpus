@@ -35,6 +35,7 @@ $sql = "
     LEFT JOIN copy_buku cb ON bs.no_copy_buku = cb.no_copy_buku
     LEFT JOIN buku b ON cb.id_buku = b.id_buku
     GROUP BY p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian, pm.id_anggota, a.nm_anggota, pm.tgl_harus_kembali, b.id_buku, b.judul_buku
+    HAVING jumlah > 0
     ORDER BY p.no_pengembalian ASC
 ";
 
