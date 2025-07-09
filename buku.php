@@ -32,6 +32,16 @@ $sql .= " ORDER BY id_buku ASC";
 
 $result = $conn->query($sql);
 
+$groupedBooks = [];
+while ($row = $result->fetch_assoc()) {
+    $category = $row['nm_kategori'] ?: 'Uncategorized';
+    if (!isset($groupedBooks[$category])) {
+        $groupedBooks[$category] = [];
+    }
+    $groupedBooks[$category][] = $row;
+}
+
+
 // Ambil semua kategori untuk dropdown filter
 $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY nm_kategori");
 ?>
@@ -178,61 +188,51 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
         
         <!-- Book List -->
         <div class="mb-4">
-            <?php if ($result->num_rows > 0) : ?>
-                <?php 
-                $currentCategory = '';
-                while ($row = $result->fetch_assoc()) : 
-                    // Tampilkan kategori jika berbeda dengan sebelumnya
-                    if ($row['nm_kategori'] != $currentCategory) {
-                        echo '<h5 class="mb-3 mt-4">' . htmlspecialchars($row['nm_kategori']) . '</h5>';
-                        $currentCategory = $row['nm_kategori'];
-                    }
-                    
-                    // Tentukan kelas stok
-                    $stockClass = 'stock-available';
-                    if ($row['jml_buku'] == 0) {
-                        $stockClass = 'stock-empty';
-                    } elseif ($row['jml_buku'] <= 5) {
-                        $stockClass = 'stock-limited';
-                    }
-                ?>
-                    <div class="book-card">
-                        <div class="book-title"><?= htmlspecialchars($row['judul_buku']) ?></div>
-                        <div class="book-author"><?= htmlspecialchars($row['pengarang']) ?></div>
-                        
-                        <div class="book-meta">
-                            <div class="book-meta-item">
-                                <i class="bi bi-calendar"></i>
-                                <?= $row['thn_terbit'] ?>
+    <?php if (!empty($groupedBooks)) : ?>
+        <?php foreach ($groupedBooks as $category => $books) : ?>
+            <div class="category-container">
+                <div class="category-header">
+                    <span><?= htmlspecialchars($category) ?></span>
+                    <span class="category-badge"><?= count($books) ?> buku</span>
+                </div>
+                <div class="books-container">
+                    <?php foreach ($books as $row) : ?>
+                        <div class="book-card">
+                            <div class="book-title"><?= htmlspecialchars($row['judul_buku']) ?></div>
+                            <div class="book-author"><?= htmlspecialchars($row['pengarang']) ?></div>
+                            
+                            <div class="book-meta">
+                                <div class="book-meta-item">
+                                    <i class="bi bi-calendar"></i>
+                                    <?= $row['thn_terbit'] ?>
+                                </div>
+                                <div class="book-meta-item">
+                                    <span class="stock-indicator <?= $stockClass ?>"></span>
+                                    <?= $row['jml_buku'] ?> tersedia
+                                </div>
+                                <div class="book-meta-item">
+                                    <i class="bi bi-building"></i>
+                                    <?= htmlspecialchars($row['penerbit']) ?>
+                                </div>
                             </div>
-                            <div class="book-meta-item">
-                                <span class="stock-indicator <?= $stockClass ?>"></span>
-                                <?= $row['jml_buku'] ?> tersedia
-                            </div>
-                            <div class="book-meta-item">
-                                <i class="bi bi-building"></i>
-                                <?= htmlspecialchars($row['penerbit']) ?>
-                            </div>
-                            <div class="book-meta-item">
-                                <i class="bi bi-tag"></i>
-                                <?= htmlspecialchars($row['nm_kategori']) ?>
+                            
+                            <div class="action-buttons">
+                                <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php&edit=<?= $row['id_buku'] ?>" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <a href="admin.php?page=perpus_utama&panggil=buku.php&hapus=<?= $row['id_buku'] ?>" 
+                                   class="btn btn-sm btn-outline-danger"
+                                   onclick="return confirm('Yakin ingin menghapus buku ini?')">
+                                    <i class="bi bi-trash"></i> Hapus
+                                </a>
                             </div>
                         </div>
-                        
-                        <div class="mt-3 d-flex gap-2">
-                            <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php&edit=<?= $row['id_buku'] ?>" 
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                            <a href="admin.php?page=perpus_utama&panggil=buku.php&hapus=<?= $row['id_buku'] ?>" 
-                               class="btn btn-sm btn-outline-danger"
-                               onclick="return confirm('Yakin ingin menghapus buku ini?')">
-                                <i class="bi bi-trash"></i> Hapus
-                            </a>
-                        </div>
-                    </div>
-                <?php endwhile; ?>
-            <?php else : ?>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php else : ?>
                 <div class="no-results">
                     <i class="bi bi-book" style="font-size: 3rem; opacity: 0.5;"></i>
                     <h4 class="mt-3">Tidak ada buku yang ditemukan</h4>
