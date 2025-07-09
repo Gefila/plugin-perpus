@@ -11,7 +11,7 @@
 }
 
 .table-container {
-    width: 90%;
+    width: 100%;
     overflow-x: auto;
 }
 
