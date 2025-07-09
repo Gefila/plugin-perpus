@@ -1,5 +1,4 @@
 <?php
-
 // Proses hapus jika ada parameter ?hapus
 if (isset($_GET['hapus'])) {
     $idHapus = $conn->real_escape_string($_GET['hapus']);
@@ -7,51 +6,253 @@ if (isset($_GET['hapus'])) {
     echo "<script>window.location.href='admin.php?page=perpus_utama&panggil=buku.php';</script>";
 }
 
+// Ambil parameter pencarian
+$searchKeyword = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+$categoryFilter = isset($_GET['category']) ? $conn->real_escape_string($_GET['category']) : '';
 
-// Ambil data buku
+// Query dasar
 $sql = "SELECT buku.*, kategori.nm_kategori 
         FROM buku 
         LEFT JOIN kategori ON buku.id_kategori = kategori.id_kategori 
-        ORDER BY id_buku ASC";
+        WHERE 1=1";
+
+// Tambahkan kondisi pencarian jika ada keyword
+if (!empty($searchKeyword)) {
+    $sql .= " AND (judul_buku LIKE '%$searchKeyword%' 
+                OR pengarang LIKE '%$searchKeyword%' 
+                OR penerbit LIKE '%$searchKeyword%')";
+}
+
+// Tambahkan filter kategori jika dipilih
+if (!empty($categoryFilter) && $categoryFilter != 'all') {
+    $sql .= " AND kategori.nm_kategori = '$categoryFilter'";
+}
+
+$sql .= " ORDER BY id_buku ASC";
 
 $result = $conn->query($sql);
+
+// Ambil semua kategori untuk dropdown filter
+$categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY nm_kategori");
 ?>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar Buku</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .header-section {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .search-section {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .book-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        
+        .book-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .book-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        
+        .book-author {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .book-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        
+        .book-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+            color: #555;
+        }
+        
+        .stock-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .stock-available {
+            background-color: #28a745;
+        }
+        
+        .stock-limited {
+            background-color: #ffc107;
+        }
+        
+        .stock-empty {
+            background-color: #dc3545;
+        }
+        
+        .pagination-info {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <!-- Header Section -->
+        <div class="header-section">
+            <h2 class="mb-3">Daftar Buku</h2>
+            <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Tambah Buku
+            </a>
+        </div>
+        
+        <!-- Search Section -->
+        <div class="search-section">
+            <h5 class="mb-3">Cari buku...</h5>
+            <form method="GET" action="admin.php">
+                <input type="hidden" name="page" value="perpus_utama">
+                <input type="hidden" name="panggil" value="buku.php">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" name="search" placeholder="Judul, Pengarang, Penerbit..." 
+                                   value="<?= htmlspecialchars($searchKeyword) ?>">
+                            <button class="btn btn-primary" type="submit">Cari</button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" name="category">
+                            <option value="all" <?= empty($categoryFilter) || $categoryFilter == 'all' ? 'selected' : '' ?>>Semua Kategori</option>
+                            <?php while ($cat = $categories->fetch_assoc()) : ?>
+                                <option value="<?= htmlspecialchars($cat['nm_kategori']) ?>" 
+                                    <?= $categoryFilter == $cat['nm_kategori'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($cat['nm_kategori']) ?>
+                                </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Book List -->
+        <div class="mb-4">
+            <?php if ($result->num_rows > 0) : ?>
+                <?php 
+                $currentCategory = '';
+                while ($row = $result->fetch_assoc()) : 
+                    // Tampilkan kategori jika berbeda dengan sebelumnya
+                    if ($row['nm_kategori'] != $currentCategory) {
+                        echo '<h5 class="mb-3 mt-4">' . htmlspecialchars($row['nm_kategori']) . '</h5>';
+                        $currentCategory = $row['nm_kategori'];
+                    }
+                    
+                    // Tentukan kelas stok
+                    $stockClass = 'stock-available';
+                    if ($row['jml_buku'] == 0) {
+                        $stockClass = 'stock-empty';
+                    } elseif ($row['jml_buku'] <= 5) {
+                        $stockClass = 'stock-limited';
+                    }
+                ?>
+                    <div class="book-card">
+                        <div class="book-title"><?= htmlspecialchars($row['judul_buku']) ?></div>
+                        <div class="book-author"><?= htmlspecialchars($row['pengarang']) ?></div>
+                        
+                        <div class="book-meta">
+                            <div class="book-meta-item">
+                                <i class="bi bi-calendar"></i>
+                                <?= $row['thn_terbit'] ?>
+                            </div>
+                            <div class="book-meta-item">
+                                <span class="stock-indicator <?= $stockClass ?>"></span>
+                                <?= $row['jml_buku'] ?> tersedia
+                            </div>
+                            <div class="book-meta-item">
+                                <i class="bi bi-building"></i>
+                                <?= htmlspecialchars($row['penerbit']) ?>
+                            </div>
+                            <div class="book-meta-item">
+                                <i class="bi bi-tag"></i>
+                                <?= htmlspecialchars($row['nm_kategori']) ?>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 d-flex gap-2">
+                            <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php&edit=<?= $row['id_buku'] ?>" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <a href="admin.php?page=perpus_utama&panggil=buku.php&hapus=<?= $row['id_buku'] ?>" 
+                               class="btn btn-sm btn-outline-danger"
+                               onclick="return confirm('Yakin ingin menghapus buku ini?')">
+                                <i class="bi bi-trash"></i> Hapus
+                            </a>
+                        </div>
+                    </div>
+                <?php endwhile; ?>
+            <?php else : ?>
+                <div class="no-results">
+                    <i class="bi bi-book" style="font-size: 3rem; opacity: 0.5;"></i>
+                    <h4 class="mt-3">Tidak ada buku yang ditemukan</h4>
+                    <p>Coba kata kunci pencarian yang berbeda atau pilih kategori lain</p>
+                </div>
+            <?php endif; ?>
+        </div>
+        
+        <!-- Pagination Info -->
+        <div class="pagination-info text-center">
+            Menampilkan <?= $result->num_rows ?> buku
+        </div>
+    </div>
 
-<h3 class="mb-3">Daftar Buku</h3>
-<a href="admin.php?page=perpus_utama&panggil=tambah_buku.php" class="btn btn-primary mb-3">Tambah Buku</a>
-
-
-<table class="table table-bordered table-striped">
-    <thead class="table-dark">
-        <tr>
-            <th>ID</th>
-            <th>Judul</th>
-            <th>Pengarang</th>
-            <th>Tahun</th>
-            <th>Jumlah</th>
-            <th>Penerbit</th>
-            <th>Kategori</th>
-            <th>Aksi</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php while ($row = $result->fetch_assoc()) : ?>
-            <tr>
-                <td><?= $row['id_buku'] ?></td>
-                <td><?= htmlspecialchars($row['judul_buku']) ?></td>
-                <td><?= htmlspecialchars($row['pengarang']) ?></td>
-                <td><?= $row['thn_terbit'] ?></td>
-                <td><?= $row['jml_buku'] ?></td>
-                <td><?= htmlspecialchars($row['penerbit']) ?></td>
-                <td><?= htmlspecialchars($row['nm_kategori']) ?></td>
-                <td>
-                    <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php&edit=<?= $row['id_buku'] ?>" class="btn btn-warning btn-sm">Edit</a>
-                    <a href="admin.php?page=perpus_utama&panggil=buku.php&hapus=<?= $row['id_buku'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin ingin menghapus buku ini?')">Hapus</a>
-                </td>
-            </tr>
-        <?php endwhile; ?>
-    </tbody>
-</table>
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Submit form saat filter kategori berubah
+        document.querySelector('select[name="category"]').addEventListener('change', function() {
+            this.form.submit();
+        });
+    </script>
+</body>
+</html>
