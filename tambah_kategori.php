@@ -1,309 +1,278 @@
 <?php
-// Proses hapus jika ada parameter ?hapus
-if (isset($_GET['hapus'])) {
-    $idHapus = $conn->real_escape_string($_GET['hapus']);
-    $conn->query("DELETE FROM buku WHERE id_buku = '$idHapus'");
-    echo "<script>window.location.href='admin.php?page=perpus_utama&panggil=buku.php';</script>";
-}
 
-// Ambil parameter pencarian
-$searchKeyword = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
-$categoryFilter = isset($_GET['category']) ? $conn->real_escape_string($_GET['category']) : '';
-
-// Query untuk mendapatkan buku yang sudah dikelompokkan
-$sql = "SELECT buku.*, kategori.nm_kategori 
-        FROM buku 
-        LEFT JOIN kategori ON buku.id_kategori = kategori.id_kategori 
-        WHERE 1=1";
-
-// Tambahkan kondisi pencarian jika ada keyword
-if (!empty($searchKeyword)) {
-    $sql .= " AND (judul_buku LIKE '%$searchKeyword%' 
-                OR pengarang LIKE '%$searchKeyword%' 
-                OR penerbit LIKE '%$searchKeyword%')";
-}
-
-// Tambahkan filter kategori jika dipilih
-if (!empty($categoryFilter) && $categoryFilter != 'all') {
-    $sql .= " AND kategori.nm_kategori = '$categoryFilter'";
-}
-
-$sql .= " ORDER BY kategori.nm_kategori, buku.judul_buku";
-
-$result = $conn->query($sql);
-
-// Ambil semua kategori untuk dropdown filter
-$categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY nm_kategori");
-
-// Kelompokkan buku berdasarkan kategori
-$groupedBooks = [];
-while ($row = $result->fetch_assoc()) {
-    $category = $row['nm_kategori'] ?: 'Uncategorized';
-    if (!isset($groupedBooks[$category])) {
-        $groupedBooks[$category] = [];
+// Fungsi generate ID kategori otomatis
+function generateIdKategori($conn) {
+    $result = $conn->query("SELECT id_kategori FROM kategori WHERE id_kategori LIKE 'K%' ORDER BY CAST(SUBSTRING(id_kategori, 2) AS UNSIGNED) DESC LIMIT 1");
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $lastId = $row['id_kategori']; // contoh: K12
+        $num = (int) substr($lastId, 1);
+        $num++;
+    } else {
+        $num = 1;
     }
-    $groupedBooks[$category][] = $row;
+    return "K" . $num;
+}
+
+// Ambil data edit jika ada
+$editData = null;
+if (isset($_GET['edit'])) {
+    $idEdit = $conn->real_escape_string($_GET['edit']);
+    $resultEdit = $conn->query("SELECT * FROM kategori WHERE id_kategori = '$idEdit'");
+    if ($resultEdit && $resultEdit->num_rows > 0) {
+        $editData = $resultEdit->fetch_assoc();
+    }
+}
+
+// Jika bukan edit, generate ID baru
+$idKategoriOtomatis = $editData ? $editData['id_kategori'] : generateIdKategori($conn);
+
+// Handle simpan data (insert atau update)
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Saat submit, jika edit maka ambil dari form, jika tambah pakai ID otomatis
+    $idKategori = $editData ? $conn->real_escape_string($_POST['idKategori']) : $idKategoriOtomatis;
+    $nmKategori = $conn->real_escape_string($_POST['nmKategori']);
+
+    if (empty($idKategori)) {
+        echo '<div class="alert alert-danger">ID Kategori harus diisi.</div>';
+    } else {
+        $cek = $conn->query("SELECT * FROM kategori WHERE id_kategori = '$idKategori'");
+        if ($cek->num_rows > 0) {
+            // Update
+            $sql = "UPDATE kategori SET nm_kategori = '$nmKategori' WHERE id_kategori = '$idKategori'";
+        } else {
+            // Insert baru
+            $sql = "INSERT INTO kategori (id_kategori, nm_kategori) VALUES ('$idKategori', '$nmKategori')";
+        }
+
+        if ($conn->query($sql)) {
+            echo '<div class="alert alert-success">Data berhasil disimpan.</div>';
+            echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=kategori.php">';
+            exit;
+        } else {
+            echo '<div class="alert alert-danger">Gagal menyimpan data: ' . $conn->error . '</div>';
+        }
+    }
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Buku</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        .header-section {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .search-section {
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .category-container {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 0;
-            margin-bottom: 25px;
-            overflow: hidden;
-        }
-        
-        .category-header {
-            background-color: #4e73df;
-            color: white;
-            padding: 12px 20px;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .category-badge {
-            background-color: rgba(255,255,255,0.2);
-            border-radius: 20px;
-            padding: 3px 10px;
-            font-size: 0.8rem;
-        }
-        
-        .books-container {
-            padding: 15px;
-        }
-        
-        .book-card {
-            background-color: #f8f9fa;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 12px;
-            border-left: 4px solid #4e73df;
-            transition: all 0.2s;
-        }
-        
-        .book-card:hover {
-            background-color: #e9ecef;
-            transform: translateX(5px);
-        }
-        
-        .book-title {
-            font-weight: bold;
-            font-size: 1.1rem;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        
-        .book-author {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-        }
-        
-        .book-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .book-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.85rem;
-            color: #555;
-        }
-        
-        .stock-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        
-        .stock-available {
-            background-color: #28a745;
-        }
-        
-        .stock-limited {
-            background-color: #ffc107;
-        }
-        
-        .stock-empty {
-            background-color: #dc3545;
-        }
-        
-        .pagination-info {
-            font-size: 0.9rem;
-            color: #666;
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .no-results {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .action-buttons {
-            margin-top: 10px;
-            display: flex;
-            gap: 8px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container py-4">
-        <!-- Header Section -->
-        <div class="header-section">
-            <h2 class="mb-3">Daftar Buku</h2>
-            <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Tambah Buku
-            </a>
-        </div>
-        
-        <!-- Search Section -->
-        <div class="search-section">
-            <h5 class="mb-3">Cari buku...</h5>
-            <form method="GET" action="admin.php">
-                <input type="hidden" name="page" value="perpus_utama">
-                <input type="hidden" name="panggil" value="buku.php">
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" name="search" placeholder="Judul, Pengarang, Penerbit..." 
-                                   value="<?= htmlspecialchars($searchKeyword) ?>">
-                            <button class="btn btn-primary" type="submit">Cari</button>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <select class="form-select" name="category">
-                            <option value="all" <?= empty($categoryFilter) || $categoryFilter == 'all' ? 'selected' : '' ?>>Semua Kategori</option>
-                            <?php while ($cat = $categories->fetch_assoc()) : ?>
-                                <option value="<?= htmlspecialchars($cat['nm_kategori']) ?>" 
-                                    <?= $categoryFilter == $cat['nm_kategori'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($cat['nm_kategori']) ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                </div>
-            </form>
-        </div>
-        
-        <!-- Book List Grouped by Category -->
-        <div class="mb-4">
-            <?php if (!empty($groupedBooks)) : ?>
-                <?php foreach ($groupedBooks as $category => $books) : ?>
-                    <div class="category-container">
-                        <div class="category-header">
-                            <span><?= htmlspecialchars($category) ?></span>
-                            <span class="category-badge"><?= count($books) ?> buku</span>
-                        </div>
-                        <div class="books-container">
-                            <?php foreach ($books as $row) : ?>
-                                <?php
-                                // Tentukan kelas stok
-                                $stockClass = 'stock-available';
-                                if ($row['jml_buku'] == 0) {
-                                    $stockClass = 'stock-empty';
-                                } elseif ($row['jml_buku'] <= 5) {
-                                    $stockClass = 'stock-limited';
-                                }
-                                ?>
-                                <div class="book-card">
-                                    <div class="book-title"><?= htmlspecialchars($row['judul_buku']) ?></div>
-                                    <div class="book-author"><?= htmlspecialchars($row['pengarang']) ?></div>
-                                    
-                                    <div class="book-meta">
-                                        <div class="book-meta-item">
-                                            <i class="bi bi-calendar"></i>
-                                            <?= $row['thn_terbit'] ?>
-                                        </div>
-                                        <div class="book-meta-item">
-                                            <span class="stock-indicator <?= $stockClass ?>"></span>
-                                            <?= $row['jml_buku'] ?> tersedia
-                                        </div>
-                                        <div class="book-meta-item">
-                                            <i class="bi bi-building"></i>
-                                            <?= htmlspecialchars($row['penerbit']) ?>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="action-buttons">
-                                        <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php&edit=<?= $row['id_buku'] ?>" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-pencil"></i> Edit
-                                        </a>
-                                        <a href="admin.php?page=perpus_utama&panggil=buku.php&hapus=<?= $row['id_buku'] ?>" 
-                                           class="btn btn-sm btn-outline-danger"
-                                           onclick="return confirm('Yakin ingin menghapus buku ini?')">
-                                            <i class="bi bi-trash"></i> Hapus
-                                        </a>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php else : ?>
-                <div class="no-results">
-                    <i class="bi bi-book" style="font-size: 3rem; opacity: 0.5;"></i>
-                    <h4 class="mt-3">Tidak ada buku yang ditemukan</h4>
-                    <p>Coba kata kunci pencarian yang berbeda atau pilih kategori lain</p>
-                </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Pagination Info -->
-        <div class="pagination-info">
-            Total <?= $result->num_rows ?> buku ditemukan
-        </div>
-    </div>
+<style>
+/* Main Form Container */
+.perpus-form-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Submit form saat filter kategori berubah
-        document.querySelector('select[name="category"]').addEventListener('change', function() {
-            this.form.submit();
-        });
-    </script>
-</body>
-</html>
+/* Form Header */
+.perpus-form-header {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.perpus-form-header h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Form Body */
+.perpus-form-body {
+    padding: 0 2rem 2rem;
+}
+
+/* Input Groups */
+.perpus-input-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.perpus-input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #4e73df;
+}
+
+.perpus-input-wrapper {
+    display: flex;
+    border: 1px solid #d1d3e2;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.perpus-input-wrapper:focus-within {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.25);
+}
+
+.perpus-input-icon {
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fc;
+    color: #4e73df;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #d1d3e2;
+}
+
+.perpus-input-field {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    outline: none;
+    background-color: white;
+}
+
+.perpus-input-field:focus {
+    box-shadow: none;
+}
+
+/* Button Styles */
+.perpus-btn-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.perpus-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.perpus-btn-primary {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: white;
+}
+
+.perpus-btn-primary:hover {
+    background: linear-gradient(135deg, #3e63cf 0%, #123aae 100%);
+    transform: translateY(-2px);
+}
+
+.perpus-btn-secondary {
+    background: #f8f9fc;
+    color: #4e73df;
+    border: 1px solid #d1d3e2;
+}
+
+.perpus-btn-secondary:hover {
+    background: #e2e6ea;
+    color: #4e73df;
+}
+
+/* Alert Messages */
+.perpus-alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.perpus-alert-success {
+    background-color: #d1f3e6;
+    color: #1cc88a;
+    border-left: 4px solid #1cc88a;
+}
+
+.perpus-alert-danger {
+    background-color: #fadbd8;
+    color: #e74a3b;
+    border-left: 4px solid #e74a3b;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .perpus-form-container {
+        margin: 1rem;
+    }
+    
+    .perpus-form-body {
+        padding: 0 1.5rem 1.5rem;
+    }
+    
+    .perpus-btn-group {
+        flex-direction: column;
+    }
+    
+    .perpus-btn {
+        width: 100%;
+    }
+}
+</style>
+
+<div class="perpus-form-container">
+    <div class="perpus-form-header">
+        <h2>
+            <i class="fas fa-tag"></i>
+            <?= isset($editData) ? "Edit Kategori Buku" : "Tambah Kategori Baru" ?>
+        </h2>
+    </div>
+    
+    <div class="perpus-form-body">
+        <?php if (isset($_SESSION['message'])) : ?>
+            <div class="perpus-alert perpus-alert-<?= $_SESSION['message_type'] ?>">
+                <i class="fas <?= $_SESSION['message_type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+                <?= $_SESSION['message'] ?>
+            </div>
+            <?php unset($_SESSION['message']); ?>
+        <?php endif; ?>
+        
+        <form method="POST">
+            <div class="perpus-input-group">
+                <label for="idKategori">ID Kategori</label>
+                <div class="perpus-input-wrapper">
+                    <span class="perpus-input-icon">
+                        <i class="fas fa-id-card"></i>
+                    </span>
+                    <input type="text" maxlength="4" class="perpus-input-field" id="idKategori" name="idKategori" required
+                        value="<?= htmlspecialchars($idKategoriOtomatis) ?>" readonly>
+                </div>
+                <small class="text-muted">ID akan digenerate otomatis</small>
+            </div>
+            
+            <div class="perpus-input-group">
+                <label for="nmKategori">Nama Kategori</label>
+                <div class="perpus-input-wrapper">
+                    <span class="perpus-input-icon">
+                        <i class="fas fa-book-open"></i>
+                    </span>
+                    <input type="text" maxlength="30" class="perpus-input-field" id="nmKategori" name="nmKategori" required
+                        value="<?= isset($editData['nm_kategori']) ? htmlspecialchars($editData['nm_kategori']) : '' ?>"
+                        placeholder="Masukkan nama kategori">
+                </div>
+                <small class="text-muted">Maksimal 30 karakter</small>
+            </div>
+            
+            <div class="perpus-btn-group">
+                <button type="submit" class="perpus-btn perpus-btn-primary">
+                    <i class="fas fa-save"></i>
+                    <?= isset($editData) ? 'Update' : 'Simpan' ?>
+                </button>
+                <a href="?page=perpus_utama&panggil=kategori.php" class="perpus-btn perpus-btn-secondary">
+                    <i class="fas fa-times"></i> Batal
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
