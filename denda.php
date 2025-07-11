@@ -203,9 +203,6 @@ $denda = $conn->query("SELECT d.*, a.nm_anggota FROM denda d
         <h2 class="perpus-denda-title">
             <i class="fas fa-money-bill-wave"></i> Data Denda Perpustakaan
         </h2>
-        <a href="admin.php?page=perpus_utama&panggil=tambah_denda.php" class="perpus-add-denda-btn">
-            <i class="fas fa-plus"></i> Tambah Denda
-        </a>
     </div>
 
     <table class="perpus-denda-table">
@@ -236,7 +233,7 @@ $denda = $conn->query("SELECT d.*, a.nm_anggota FROM denda d
                     <td data-label="Alasan"><?= htmlspecialchars($row['alasan_denda']) ?></td>
                     <td data-label="Tanggal"><?= date('d-m-Y', strtotime($row['tgl_denda'])) ?></td>
                     <td data-label="Aksi" class="perpus-denda-action">
-                   <a href="admin.php?page=perpus_utama&panggil=denda.php&hapus=<?= $row['no_denda'] ?>"
+                   <a href="admin.php?page=perpus_utama&panggil=tambah_denda.php&edit=<?= $row['no_denda'] ?>"
                            class="perpus-edit-denda-btn">
                            <i class="fa fa-edit"></i> Edit
                           </a>

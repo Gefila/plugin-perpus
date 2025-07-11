@@ -18,6 +18,15 @@ function generateNoDenda($conn) {
     }
 }
 
+$editData = null;
+if (isset($_GET['edit'])) {
+    $idEdit = $conn->real_escape_string($_GET['edit']);
+    $resultEdit = $conn->query("SELECT * FROM denda WHERE no_dneda = '$idEdit' ");
+    if ($resultEdit && $resultEdit->num_rows > 0) {
+        $editData = $resultEdit->fetch_assoc();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $no_pengembalian = $_POST['no_pengembalian'];
     $tarif = $_POST['tarif_denda'];
