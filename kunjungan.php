@@ -1,47 +1,99 @@
 <?php
-// ambil data kunjungan beserta nama anggota
-$result = $conn->query("SELECT k.*, a.nm_anggota FROM kunjungan k JOIN anggota a ON k.id_anggota = a.id_anggota ORDER BY k.tgl_kunjungan DESC");
+// Ambil data kunjungan dan nama anggota
+$conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
+if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
+
+$result = $conn->query("
+    SELECT k.*, a.nm_anggota 
+    FROM kunjungan k 
+    JOIN anggota a ON k.id_anggota = a.id_anggota 
+    ORDER BY k.tgl_kunjungan DESC
+");
 ?>
 
-<!-- CDN Bootstrap dan Font Awesome -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Bootstrap dan Font Awesome -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
-<div class="container py-4">
+<!-- Custom Style -->
+<style>
+    body {
+        background: linear-gradient(to right, #eef3ff, #dce7ff);
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .card-glass {
+        background: rgba(255, 255, 255, 0.85);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    .btn-glow {
+        transition: 0.3s ease;
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    .btn-glow:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    }
+    .table thead th {
+        background: linear-gradient(to right, #2c3e50, #3498db);
+        color: #fff;
+        border: none;
+    }
+    .table thead th:first-child {
+        border-top-left-radius: 12px;
+    }
+    .table thead th:last-child {
+        border-top-right-radius: 12px;
+    }
+</style>
+
+<!-- Konten -->
+<div class="container my-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold text-primary">📚 Data Kunjungan Perpustakaan</h2>
-        <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php" class="btn btn-success shadow-sm">
+        <h3 class="fw-bold text-dark">
+            <i class="fa-solid fa-user-clock text-primary me-2"></i>Data Kunjungan Perpustakaan
+        </h3>
+        <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php" class="btn btn-success btn-glow">
             <i class="fa fa-plus-circle me-1"></i> Tambah Kunjungan
         </a>
     </div>
 
-    <div class="table-responsive shadow-sm rounded bg-white p-3">
-        <table class="table table-hover table-bordered align-middle">
-            <thead class="table-primary text-center">
-                <tr>
-                    <th>ID</th>
-                    <th>Nama Pengunjung</th>
-                    <th>Tanggal Kunjungan</th>
-                    <th>Tujuan</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php while ($row = $result->fetch_assoc()): ?>
+    <div class="card-glass">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle text-center">
+                <thead>
                     <tr>
-                        <td><?= htmlspecialchars($row['id_kunjungan']) ?></td>
-                        <td><?= htmlspecialchars($row['nm_anggota']) ?></td>
-                        <td><?= date("d M Y", strtotime($row['tgl_kunjungan'])) ?></td>
-                        <td><?= htmlspecialchars($row['tujuan']) ?></td>
-                        <td class="text-center">
-                            <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php&id_kunjungan=<?= htmlspecialchars($row['id_kunjungan']) ?>" 
-                               class="btn btn-warning btn-sm">
-                                <i class="fa fa-edit"></i> Edit
-                            </a>
-                        </td>
+                        <th>ID</th>
+                        <th>Nama Pengunjung</th>
+                        <th>Tanggal Kunjungan</th>
+                        <th>Tujuan</th>
+                        <th>Aksi</th>
                     </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php if ($result && $result->num_rows > 0): ?>
+                        <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['id_kunjungan']) ?></td>
+                            <td class="text-start"><?= htmlspecialchars($row['nm_anggota']) ?></td>
+                            <td><?= date("d M Y", strtotime($row['tgl_kunjungan'])) ?></td>
+                            <td class="text-start"><?= htmlspecialchars($row['tujuan']) ?></td>
+                            <td>
+                                <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php&id_kunjungan=<?= $row['id_kunjungan'] ?>" 
+                                   class="btn btn-warning btn-sm">
+                                    <i class="fa fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="5" class="text-muted">Tidak ada data kunjungan.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
