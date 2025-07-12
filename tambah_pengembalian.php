@@ -22,13 +22,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
         exit;
     }
 
+    if (!isset($_POST['tarif_denda']) || $_POST['tarif_denda'] === '') {
+        echo "<script>alert('Denda belum dihitung! Harap isi tanggal dan centang buku.');history.back();</script>";
+        exit;
+    }
+
     $conn->begin_transaction();
     try {
-        // Simpan pengembalian
-        $conn->query("INSERT INTO pengembalian (no_pengembalian, tgl_pengembalian, no_peminjaman, id_denda) VALUES ('$no_pengembalian', '$tgl_pengembalian', '$no_peminjaman', 'D1')");
+        // Simpan pengembalian (satu kali saja, lengkap)
+        $conn->query("INSERT INTO pengembalian 
+            (no_pengembalian, tgl_pengembalian, no_peminjaman, id_denda) 
+            VALUES 
+            ('$no_pengembalian', '$tgl_pengembalian', '$no_peminjaman', 'D1')");
 
-        // Cek duplikasi pengembalian
-       $cek_stmt = $conn->prepare("
+        // Cek & simpan detail pengembalian
+        $cek_stmt = $conn->prepare("
             SELECT 1 
             FROM bisa bs 
             JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian 
@@ -52,12 +60,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
             $update_copy->execute();
         }
 
-        // Simpan denda otomatis
-        $conn->query("INSERT INTO pengembalian 
-        (no_pengembalian, tgl_pengembalian, no_peminjaman, id_denda, tarif_denda, alasan_denda) 
-        VALUES 
-        ('$no_pengembalian', '$tgl_pengembalian', '$no_peminjaman', 'D1', $tarif_denda, '$alasan_denda')");
-
         // Simpan denda tambahan jika ada
         if (!empty($id_denda_tambahan)) {
             $conn->query("INSERT INTO pengembalian_denda(no_pengembalian, id_denda) VALUES('$no_pengembalian','$id_denda_tambahan')");
@@ -77,7 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
 // Ambil data anggota dan peminjaman
 $anggota = $conn->query("SELECT * FROM anggota ORDER BY nm_anggota");
 
-// Ambil peminjaman dan hanya tampilkan copy buku yang belum dikembalikan
+// Ambil peminjaman yang masih memiliki buku belum dikembalikan
 $peminjaman = $conn->query("
 SELECT p.no_peminjaman, p.id_anggota, p.tgl_peminjaman, p.tgl_harus_kembali
 FROM peminjaman p
@@ -103,9 +105,6 @@ WHERE NOT EXISTS (
     WHERE bs.no_copy_buku = d.no_copy_buku AND p.no_peminjaman = d.no_peminjaman
 )
 ");
-
-
-
 
 $peminjamanData = [];
 while ($row = $peminjaman->fetch_assoc()) {
@@ -219,7 +218,7 @@ function updateInfo() {
   html += '</ul>';
   document.getElementById('tabelBuku').innerHTML = html;
 
-  // Tambahkan event listener ke checkbox buku agar updateDenda() dipanggil saat dicentang/diubah
+  // Event update denda
   setTimeout(() => {
     document.querySelectorAll('input[name="no_copy_buku[]"]').forEach(cb => {
       cb.addEventListener('change', updateDenda);
@@ -257,45 +256,33 @@ function updateDenda() {
     if (data) kembali = new Date(data.tgl_harus_kembali); 
   }
 
-  // Hitung hari keterlambatan
   let hari = 0;
   if (tgl && kembali) hari = Math.ceil((tgl - kembali) / (1000 * 60 * 60 * 24));
   if (hari < 0) hari = 0;
 
-  // Hitung jumlah buku yang dikembalikan (checkbox dicentang)
   const bukuChecked = document.querySelectorAll('input[name="no_copy_buku[]"]:checked');
   const jumlahBuku = bukuChecked.length;
 
-  // Denda telat
   const dendaTelat = hari * tarifPerHari * jumlahBuku;
 
-  // Status Pengembalian
   const statusDiv = document.getElementById('status_pengembalian');
   if (tgl && kembali) {
-    if (tgl <= kembali) {
-      statusDiv.innerHTML = "<span style='color:green'>Tepat Waktu</span>";
-    } else {
-      statusDiv.innerHTML = `<span style='color:red'>Terlambat ${hari} hari</span>`;
-    }
-  } else {
-    statusDiv.innerHTML = '';
+    statusDiv.innerHTML = tgl <= kembali
+      ? "<span style='color:green'>Tepat Waktu</span>"
+      : `<span style='color:red'>Terlambat ${hari} hari</span>`;
   }
 
-  // Denda tambahan dikali jumlah buku
   const tambahan = document.getElementById('id_denda_tambahan');
   const tarifTambahan = tambahan.value ? parseInt(tambahan.options[tambahan.selectedIndex].text.split('Rp')[1].replace(/\D/g,'')) : 0;
   const totalTambahan = tarifTambahan * jumlahBuku;
 
-  // Total denda akhir
   const totalDenda = dendaTelat + totalTambahan;
 
-  // Tampilkan ke user
   document.getElementById('denda_telat_display').value = `Rp${dendaTelat.toLocaleString('id-ID')}`;
   document.getElementById('total_denda_display').value = `Rp${totalDenda.toLocaleString('id-ID')}`;
   document.getElementById('tarif_denda').value = dendaTelat;
   document.getElementById('alasan_denda').value = hari > 0 ? `Telat ${hari} hari × ${jumlahBuku} buku` : '';
 }
-
 </script>
 </body>
 </html>
