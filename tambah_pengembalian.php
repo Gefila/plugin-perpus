@@ -31,9 +31,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     try {
         // Simpan pengembalian (satu kali saja, lengkap)
         $conn->query("INSERT INTO pengembalian 
-            (no_pengembalian, tgl_pengembalian, no_peminjaman, id_denda, tarif_denda, alasan_denda) 
+            (no_pengembalian, tgl_pengembalian, no_peminjaman, id_denda) 
             VALUES 
-            ('$no_pengembalian', '$tgl_pengembalian', '$no_peminjaman', 'D1', $tarif_denda, '$alasan_denda')");
+            ('$no_pengembalian', '$tgl_pengembalian', '$no_peminjaman', 'D1')");
 
         // Cek & simpan detail pengembalian
         $cek_stmt = $conn->prepare("
