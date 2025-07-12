@@ -16,37 +16,7 @@ $result = $conn->query("
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
 <!-- Custom Style -->
-<style>
-    body {
-        background: linear-gradient(to right, #eef3ff, #dce7ff);
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .card-glass {
-        background: rgba(255, 255, 255, 0.85);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    }
-    .btn-glow {
-        transition: 0.3s ease;
-        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-    }
-    .btn-glow:hover {
-        transform: scale(1.05);
-        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
-    }
-    .table thead th {
-        background: linear-gradient(to right, #2c3e50, #3498db);
-        color: #fff;
-        border: none;
-    }
-    .table thead th:first-child {
-        border-top-left-radius: 12px;
-    }
-    .table thead th:last-child {
-        border-top-right-radius: 12px;
-    }
-</style>
+<link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet">
 
 <!-- Konten -->
 <div class="container my-5">

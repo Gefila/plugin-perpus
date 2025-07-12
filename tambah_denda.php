@@ -1,67 +1,106 @@
 <?php
-$conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
-if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
-
-$pengembalian = $conn->query("SELECT no_pengembalian FROM pengembalian 
-                              WHERE status_denda = 'terdenda' 
-                              AND no_pengembalian NOT IN (SELECT no_pengembalian FROM denda)");
-
-function generateNoDenda($conn) {
-    $result = $conn->query("SELECT no_denda FROM denda ORDER BY no_denda DESC LIMIT 1");
-    if ($result->num_rows > 0) {
-        $last = $result->fetch_assoc()['no_denda'];
-        $num = (int)substr($last, 2);
-        $num++;
-        return 'DN' . str_pad($num, 2, '0', STR_PAD_LEFT);
+// Fungsi Generate ID Otomatis
+function generateIdDenda($conn) {
+    $result = $conn->query("SELECT id_denda FROM denda ORDER BY CAST(SUBSTRING(id_denda, 2) AS UNSIGNED) DESC LIMIT 1");
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $num = (int) substr($row['id_denda'], 1) + 1;
     } else {
-        return 'DN01';
+        $num = 1;
     }
+    return "D" . $num;
 }
 
-$editData = null;
+$idDenda = $tarifDenda = $alasanDenda = '';
+$isEdit = false;
+
+// Cek apakah sedang dalam mode edit
 if (isset($_GET['edit'])) {
-    $idEdit = $conn->real_escape_string($_GET['edit']);
-    $resultEdit = $conn->query("SELECT * FROM denda WHERE no_dneda = '$idEdit' ");
-    if ($resultEdit && $resultEdit->num_rows > 0) {
-        $editData = $resultEdit->fetch_assoc();
+    $id = $conn->real_escape_string($_GET['edit']);
+    $result = $conn->query("SELECT * FROM denda WHERE id_denda = '$id'");
+    if ($result && $result->num_rows > 0) {
+        $data = $result->fetch_assoc();
+        $idDenda = $data['id_denda'];
+        $tarifDenda = $data['tarif_denda'];
+        $alasanDenda = $data['alasan_denda'];
+        $isEdit = true;
     }
+} else {
+    $idDenda = generateIdDenda($conn); // untuk tambah baru
 }
 
+// Proses simpan data
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $no_pengembalian = $_POST['no_pengembalian'];
-    $tarif = $_POST['tarif_denda'];
-    $alasan = $_POST['alasan_denda'];
-    $tgl = $_POST['tgl_denda']; // manual input dari form
-    $no_denda = generateNoDenda($conn);
+    $idDenda = $conn->real_escape_string($_POST['idDenda']);
+    $tarifDenda = $conn->real_escape_string($_POST['tarifDenda']);
+    $alasanDenda = $conn->real_escape_string($_POST['alasanDenda']);
 
-    $conn->query("INSERT INTO denda (no_denda, tgl_denda, tarif_denda, alasan_denda, no_pengembalian) 
-                  VALUES ('$no_denda', '$tgl', '$tarif', '$alasan', '$no_pengembalian')");
+    if (empty($idDenda) || empty($tarifDenda) || empty($alasanDenda)) {
+        echo '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Semua field harus diisi.</div>';
+    } else {
+        if (isset($_POST['editMode']) && $_POST['editMode'] === '1') {
+            // Mode Edit
+            $sql = "UPDATE denda SET tarif_denda='$tarifDenda', alasan_denda='$alasanDenda' WHERE id_denda='$idDenda'";
+        } else {
+            // Mode Tambah
+            $sql = "INSERT INTO denda (id_denda, tarif_denda, alasan_denda) VALUES ('$idDenda', '$tarifDenda', '$alasanDenda')";
+        }
 
-    $conn->query("UPDATE pengembalian SET status_denda='terdenda' WHERE no_pengembalian='$no_pengembalian'");
-
-    echo "<script>alert('Denda berhasil ditambahkan');location.href='admin.php?page=perpus_utama&panggil=denda.php';</script>";
+        if ($conn->query($sql)) {
+            echo '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Data berhasil disimpan.</div>';
+            echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=denda.php">';
+            exit;
+        } else {
+            echo '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Gagal menyimpan data: ' . $conn->error . '</div>';
+        }
+    }
 }
 ?>
 
-<h3>Tambah Denda</h3>
-<form method="POST">
-    <label>Pilih No Pengembalian</label>
-    <select name="no_pengembalian" class="form-control" required>
-        <option value="">-- Pilih --</option>
-        <?php while($r = $pengembalian->fetch_assoc()): ?>
-        <option value="<?= $r['no_pengembalian'] ?>"><?= $r['no_pengembalian'] ?></option>
-        <?php endwhile; ?>
-    </select>
+<!-- Bootstrap & Font Awesome -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+<!-- Custom CSS -->
+<link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet" />
 
-    <label class="mt-2">Tarif Denda</label>
-    <input type="number" name="tarif_denda" required class="form-control">
+<div class="container my-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-money-bill-wave me-2"></i>
+                <?= $isEdit ? 'Edit Denda' : 'Tambah Denda Baru' ?>
+            </h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="editMode" value="<?= $isEdit ? '1' : '0' ?>">
 
-    <label class="mt-2">Alasan Denda</label>
-    <input type="text" name="alasan_denda" required class="form-control">
+                <div class="mb-3">
+                    <label for="idDenda" class="form-label fw-semibold text-danger">ID Denda</label>
+                    <input type="text" class="form-control" id="idDenda" name="idDenda" value="<?= htmlspecialchars($idDenda) ?>" readonly>
+                    <div class="form-text">ID otomatis</div>
+                </div>
 
-    <label class="mt-2">Tanggal Denda</label>
-    <input type="date" name="tgl_denda" required class="form-control">
+                <div class="mb-3">
+                    <label for="tarifDenda" class="form-label fw-semibold text-danger">Tarif Denda</label>
+                    <input type="text" class="form-control" id="tarifDenda" name="tarifDenda" maxlength="10" placeholder="Contoh: 5000" value="<?= htmlspecialchars($tarifDenda) ?>" required>
+                    <div class="form-text">Masukkan angka tanpa titik/koma</div>
+                </div>
 
-    <br>
-    <button type="submit" class="btn btn-success">Simpan</button>
-</form>
+                <div class="mb-3">
+                    <label for="alasanDenda" class="form-label fw-semibold text-danger">Alasan Denda</label>
+                    <textarea class="form-control" id="alasanDenda" name="alasanDenda" rows="3" placeholder="Tulis alasan dikenakan denda" required><?= htmlspecialchars($alasanDenda) ?></textarea>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="?page=perpus_utama&panggil=denda.php" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Batal
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-save"></i> Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

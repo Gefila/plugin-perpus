@@ -1,0 +1,48 @@
+/* perpus-style.css */
+body {
+    background: linear-gradient(to right, #eef3ff, #dce7ff);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.card-glass {
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.btn-glow {
+    transition: 0.3s ease;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+}
+
+.btn-glow:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(99, 150, 226, 0.35);
+}
+
+.table thead th {
+    background: linear-gradient(to right, #2980b9, #3498db);
+    color: #fff;
+    border: none;
+}
+
+.table thead th:first-child {
+    border-top-left-radius: 12px;
+}
+
+.table thead th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+.badge-copy {
+    background-color: #8a92ec;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+}

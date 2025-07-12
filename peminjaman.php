@@ -61,47 +61,7 @@ if ($result && $result->num_rows > 0) {
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
 <!-- Custom Style -->
-<style>
-    body {
-        background: linear-gradient(to right, #eef3ff, #dce7ff);
-        font-family: 'Segoe UI', sans-serif;
-    }
-    .card-glass {
-        background: rgba(255, 255, 255, 0.85);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    }
-    .btn-glow {
-        transition: 0.3s ease;
-        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
-    }
-    .btn-glow:hover {
-        transform: scale(1.05);
-        box-shadow: 0 6px 20px rgba(99, 150, 226, 0.35);
-    }
-    .table thead th {
-        background: linear-gradient(to right, #2980b9, #3498db);
-        color: #fff;
-        border: none;
-    }
-    .table thead th:first-child {
-        border-top-left-radius: 12px;
-    }
-    .table thead th:last-child {
-        border-top-right-radius: 12px;
-    }
-    .table td, .table th {
-        vertical-align: middle;
-        padding: 0.75rem;
-    }
-    .badge-copy {
-        background-color: #8a92ec;
-        padding: 5px 10px;
-        border-radius: 12px;
-        font-size: 0.85em;
-    }
-</style>
+<link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet">
 
 <!-- Konten -->
 <div class="container my-5">
@@ -147,7 +107,14 @@ if ($result && $result->num_rows > 0) {
                         <td><?= $first ? htmlspecialchars($item['id_anggota']) : '' ?></td>
                         <td><?= $first ? htmlspecialchars($item['nm_anggota']) : '' ?></td>
                         <td><?= htmlspecialchars($item['id_buku']) ?> - <strong><?= htmlspecialchars($item['judul_buku']) ?></strong></td>
-                        <td><span class="badge-copy"><?= htmlspecialchars($item['no_copy']) ?></span></td>
+                       <td>
+                            <?php 
+                                $copyList = explode(',', $item['no_copy']);
+                                foreach ($copyList as $copy) {
+                                    echo '<div class="badge-copy">' . htmlspecialchars(trim($copy)) . '</div>';
+                                }
+                            ?>
+                        </td>
                         <td><span class="badge bg-secondary"><?= $item['jumlah'] ?></span></td>
                         <td>
                             <?php if ($first): ?>
