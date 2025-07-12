@@ -3,6 +3,18 @@
 $conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
+if (isset($_GET['hapus'])) {
+    $idHapus = $conn->real_escape_string($_GET['hapus']);
+    $sqlDel = "DELETE FROM kunjungan WHERE id_kunjungan= '$idHapus'";
+    if ($conn->query($sqlDel)) {
+        echo '<div class="alert alert-success">Data Kunjungan berhasil dihapus.</div>';
+        echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=kunjungan.php">';
+    } else {
+        echo '<div class="alert alert-danger">Gagal menghapus data kunjungan.</div>';
+    }
+}
+
+
 $result = $conn->query("
     SELECT k.*, a.nm_anggota 
     FROM kunjungan k 
@@ -24,7 +36,7 @@ $result = $conn->query("
         <h3 class="fw-bold text-dark">
             <i class="fa-solid fa-user-clock text-primary me-2"></i>Data Kunjungan Perpustakaan
         </h3>
-        <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php" class="btn btn-success btn-glow">
+        <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php" class="btn btn-primary btn-glow">
             <i class="fa fa-plus-circle me-1"></i> Tambah Kunjungan
         </a>
     </div>
@@ -50,9 +62,11 @@ $result = $conn->query("
                             <td><?= date("d M Y", strtotime($row['tgl_kunjungan'])) ?></td>
                             <td class="text-start"><?= htmlspecialchars($row['tujuan']) ?></td>
                             <td>
-                                <a href="admin.php?page=perpus_utama&panggil=tambah_kunjungan.php&id_kunjungan=<?= $row['id_kunjungan'] ?>" 
-                                   class="btn btn-warning btn-sm">
-                                    <i class="fa fa-edit"></i>
+                                <a href='?page=perpus_utama&panggil=tambah_kunjungan.php&id_kunjungan=<?= htmlspecialchars($row['id_kunjungan']) ?>' class='btn btn-warning btn-glow me-1'>
+                                    <i class='fa fa-edit'></i> Edit
+                                </a>
+                                <a href='?page=perpus_utama&panggil=kunjungan.php&hapus=<?= htmlspecialchars($row['id_kunjungan']) ?>' class='btn btn-danger btn-glow' onclick="return confirm('Yakin hapus data anggota ini?')">
+                                    <i class='fa fa-trash'></i> Hapus
                                 </a>
                             </td>
                         </tr>

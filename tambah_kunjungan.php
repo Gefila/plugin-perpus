@@ -32,7 +32,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $pesan = "Data kunjungan berhasil diubah.";
     } else {
         // insert
-        $id_kunjungan = "KJ" . time();
+        $result = $conn->query("SELECT id_kunjungan FROM kunjungan WHERE id_kunjungan LIKE 'KJ%' ORDER BY CAST(SUBSTRING(id_kunjungan, 3) AS UNSIGNED) DESC LIMIT 1");
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            $num = (int)substr($row['id_kunjungan'], 2) + 1;
+        } else {
+            $num = 1;
+        }
+        $id_kunjungan = "KJ". $num; 
         $sql = "INSERT INTO kunjungan (id_kunjungan, tgl_kunjungan, tujuan, id_anggota) VALUES ('$id_kunjungan', '$tgl_kunjungan', '$tujuan', '$id_anggota')";
         $pesan = "Data kunjungan berhasil ditambahkan.";
     }
