@@ -58,14 +58,14 @@ $result = $conn->query("
                         <?php while ($row = $result->fetch_assoc()): ?>
                         <tr>
                             <td><?= htmlspecialchars($row['id_kunjungan']) ?></td>
-                            <td class="text-start"><?= htmlspecialchars($row['nm_anggota']) ?></td>
+                            <td><?= htmlspecialchars($row['nm_anggota']) ?></td>
                             <td><?= date("d M Y", strtotime($row['tgl_kunjungan'])) ?></td>
-                            <td class="text-start"><?= htmlspecialchars($row['tujuan']) ?></td>
+                            <td><?= htmlspecialchars($row['tujuan']) ?></td>
                             <td>
                                 <a href='?page=perpus_utama&panggil=tambah_kunjungan.php&id_kunjungan=<?= htmlspecialchars($row['id_kunjungan']) ?>' class='btn btn-warning btn-glow me-1'>
                                     <i class='fa fa-edit'></i> Edit
                                 </a>
-                                <a href='?page=perpus_utama&panggil=kunjungan.php&hapus=<?= htmlspecialchars($row['id_kunjungan']) ?>' class='btn btn-danger btn-glow' onclick="return confirm('Yakin hapus data anggota ini?')">
+                                <a href='?page=perpus_utama&panggil=kunjungan.php&hapus=<?= htmlspecialchars($row['id_kunjungan']) ?>' class='btn btn-danger btn-glow' onclick="return confirm('Yakin hapus data kunjungan ini?')">
                                     <i class='fa fa-trash'></i> Hapus
                                 </a>
                             </td>

@@ -29,29 +29,60 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
-// Ambil data peminjaman
+// Ambil data peminjaman dengan format baru
 $sql = "
     SELECT 
-        p.no_peminjaman, p.tgl_peminjaman, p.tgl_harus_kembali, p.id_anggota, a.nm_anggota,
+        p.no_peminjaman, 
+        p.tgl_peminjaman, 
+        p.tgl_harus_kembali, 
+        p.id_anggota, 
+        a.nm_anggota,
         b.id_buku, b.judul_buku,
-        GROUP_CONCAT(d.no_copy_buku SEPARATOR ', ') AS no_copy,
-        COUNT(d.no_copy_buku) AS jumlah
+        d.no_copy_buku
     FROM peminjaman p
     LEFT JOIN anggota a ON p.id_anggota = a.id_anggota
     LEFT JOIN dapat d ON p.no_peminjaman = d.no_peminjaman
     LEFT JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
     LEFT JOIN buku b ON cb.id_buku = b.id_buku
-    GROUP BY p.no_peminjaman, b.id_buku
-    ORDER BY p.no_peminjaman ASC
+    ORDER BY p.no_peminjaman ASC, b.id_buku ASC, d.no_copy_buku ASC
 ";
 
 $result = $conn->query($sql);
 
-// Kelola hasil
-$data = [];
+// Susun data peminjaman menjadi array terstruktur
+$peminjamanData = [];
+
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        $data[$row['no_peminjaman']][] = $row;
+        $no = $row['no_peminjaman'];
+
+        if (!isset($peminjamanData[$no])) {
+            $peminjamanData[$no] = [
+                'no_peminjaman' => $no,
+                'tgl_peminjaman' => $row['tgl_peminjaman'],
+                'tgl_harus_kembali' => $row['tgl_harus_kembali'],
+                'id_anggota' => $row['id_anggota'],
+                'nm_anggota' => $row['nm_anggota'],
+                'buku' => [],
+                'total_copy' => 0
+            ];
+        }
+
+        $id_buku = $row['id_buku'];
+        $judul_buku = $row['judul_buku'];
+        $copy = $row['no_copy_buku'];
+
+        if (!isset($peminjamanData[$no]['buku'][$id_buku])) {
+            $peminjamanData[$no]['buku'][$id_buku] = [
+                'judul' => $judul_buku,
+                'copy' => []
+            ];
+        }
+
+        if ($copy) {
+            $peminjamanData[$no]['buku'][$id_buku]['copy'][] = $copy;
+            $peminjamanData[$no]['total_copy']++;
+        }
     }
 }
 ?>
@@ -59,7 +90,6 @@ if ($result && $result->num_rows > 0) {
 <!-- Bootstrap & Font Awesome -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-
 <!-- Custom Style -->
 <link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet">
 
@@ -76,66 +106,70 @@ if ($result && $result->num_rows > 0) {
 
     <div class="card-glass">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover align-middle text-center">
+            <table class="table table-bordered table-hover align-middle">
                 <thead>
-                    <tr>
+                    <tr class="text-center">
                         <th>No</th>
                         <th>No Peminjaman</th>
-                        <th>Tgl Pinjam</th>
-                        <th>Tgl Kembali</th>
+                        <th style="width:130px">Tgl Pinjam</th>
+                        <th style="width:130px">Tgl Kembali</th>
                         <th>ID Anggota</th>
-                        <th>Nama</th>
-                        <th>ID - Judul Buku</th>
+                        <th style="width:130px">Nama</th>
+                        <th>Buku yang Dipinjam</th>
                         <th>Copy Buku</th>
                         <th>Jumlah</th>
-                        <th>Aksi</th>
+                        <th style="width:130px">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php 
-                $no = 1;
-                if (!empty($data)):
-                    foreach ($data as $no_peminjaman => $items):
-                        $first = true;
-                        foreach ($items as $item):
-                ?>
-                    <tr>
-                        <td><?= $first ? $no : '' ?></td>
-                        <td><?= $first ? htmlspecialchars($item['no_peminjaman']) : '' ?></td>
-                        <td><?= $first ? date('d M Y', strtotime($item['tgl_peminjaman'])) : '' ?></td>
-                        <td><?= $first ? date('d M Y', strtotime($item['tgl_harus_kembali'])) : '' ?></td>
-                        <td><?= $first ? htmlspecialchars($item['id_anggota']) : '' ?></td>
-                        <td><?= $first ? htmlspecialchars($item['nm_anggota']) : '' ?></td>
-                        <td><?= htmlspecialchars($item['id_buku']) ?> - <strong><?= htmlspecialchars($item['judul_buku']) ?></strong></td>
-                       <td>
-                            <?php 
-                                $copyList = explode(',', $item['no_copy']);
-                                foreach ($copyList as $copy) {
-                                    echo '<div class="badge-copy">' . htmlspecialchars(trim($copy)) . '</div>';
-                                }
-                            ?>
-                        </td>
-                        <td><span class="badge bg-secondary"><?= $item['jumlah'] ?></span></td>
-                        <td>
-                            <?php if ($first): ?>
-                            <a href="admin.php?page=perpus_utama&panggil=peminjaman.php&hapus=<?= urlencode($item['no_peminjaman']) ?>" 
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                <i class="fa fa-trash"></i>
-                            </a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php 
-                        $first = false;
-                        endforeach;
-                        $no++;
-                    endforeach;
-                else: ?>
-                    <tr>
-                        <td colspan="10" class="text-muted">Tidak ada data peminjaman.</td>
-                    </tr>
-                <?php endif; ?>
+               $no = 1;
+                        if (!empty($peminjamanData)):
+                            foreach ($peminjamanData as $data):
+                        ?>
+                        <tr>
+                            <td class="text-center"><?= $no ?></td>
+                            <td class="text-center"><?= $data['no_peminjaman'] ?></td>
+                            <td class="text-center"><?= date('d M Y', strtotime($data['tgl_peminjaman'])) ?></td>
+                            <td class="text-center"><?= date('d M Y', strtotime($data['tgl_harus_kembali'])) ?></td>
+                            <td class="text-center"><?= $data['id_anggota'] ?></td>
+                            <td class="text-center"><?= $data['nm_anggota'] ?></td>
+
+                            <td>
+                                <?php foreach ($data['buku'] as $id_buku => $b): ?>
+                                    <strong><?= htmlspecialchars($id_buku) ?></strong> - <?= htmlspecialchars($b['judul']) ?><br>
+                                <?php endforeach; ?>
+                            </td>
+
+                            <td>
+                                <?php foreach ($data['buku'] as $id_buku => $b): ?>
+                                    <strong><?= htmlspecialchars($id_buku) ?></strong>: 
+                                    <?= implode(', ', $b['copy']) ?><br>
+                                <?php endforeach; ?>
+                            </td>
+
+                            <td class="text-center"><?= $data['total_copy'] ?></td>
+                            <td class="text-center">
+                                <a href="admin.php?page=perpus_utama&panggil=tambah_peminjaman.php&edit=<?= urlencode($row['no_peminjaman']) ?>" 
+                                    class="btn btn-sm btn-warning">
+                                        <i class="fa fa-pencil-alt"></i>
+                                    </a>
+
+                                <a href="admin.php?page=perpus_utama&panggil=peminjaman.php&hapus=<?= urlencode($data['no_peminjaman']) ?>" 
+                                class="btn btn-sm btn-danger"
+                                onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                    <i class="fa fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        <?php 
+                            $no++;
+                            endforeach;
+                        else: ?>
+                        <tr>
+                            <td colspan="10" class="text-center text-muted">Tidak ada data peminjaman.</td>
+                        </tr>
+                        <?php endif; ?>
                 </tbody>
             </table>
         </div>

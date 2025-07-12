@@ -46,6 +46,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($conn->query($sql)) {
         echo '<div class="alert alert-success" role="alert">' . $pesan . '</div>';
+         echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=kunjungan.php">';
+        exit;
     } else {
         echo '<div class="alert alert-danger" role="alert">Gagal menyimpan data: ' . htmlspecialchars($conn->error) . '</div>';
     }

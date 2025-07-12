@@ -117,6 +117,8 @@ foreach ($bookData as $id_buku => $data) {
     }
     $copyBukuAll[$id_buku] = $copies;
 }
+
+
 ?>
 
 <!DOCTYPE html>
