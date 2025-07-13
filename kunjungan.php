@@ -1,5 +1,4 @@
 <?php
-// Ambil data kunjungan dan nama anggota
 $conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
@@ -14,23 +13,22 @@ if (isset($_GET['hapus'])) {
     }
 }
 
-
 $result = $conn->query("
-    SELECT k.*, a.nm_anggota 
-    FROM kunjungan k 
-    JOIN anggota a ON k.id_anggota = a.id_anggota 
+    SELECT 
+        k.id_kunjungan, 
+        k.tgl_kunjungan, 
+        k.tujuan, 
+        COALESCE(a.nm_anggota, k.nama_pengunjung) AS nama_pengunjung
+    FROM kunjungan k
+    LEFT JOIN anggota a ON k.id_anggota = a.id_anggota
     ORDER BY k.tgl_kunjungan DESC
 ");
 ?>
 
-<!-- Bootstrap dan Font Awesome -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-
-<!-- Custom Style -->
 <link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet">
 
-<!-- Konten -->
 <div class="container my-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-dark">
@@ -58,7 +56,7 @@ $result = $conn->query("
                         <?php while ($row = $result->fetch_assoc()): ?>
                         <tr>
                             <td><?= htmlspecialchars($row['id_kunjungan']) ?></td>
-                            <td><?= htmlspecialchars($row['nm_anggota']) ?></td>
+                            <td><?= htmlspecialchars($row['nama_pengunjung']) ?></td>
                             <td><?= date("d M Y", strtotime($row['tgl_kunjungan'])) ?></td>
                             <td><?= htmlspecialchars($row['tujuan']) ?></td>
                             <td>
