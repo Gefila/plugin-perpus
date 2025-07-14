@@ -1,22 +1,25 @@
-<div class="container mt-4">
-    <h3 class="text-center mb-4">LAPORAN PEMINJAMAN BUKU</h3>
+<link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet" />
 
-    <form action="<?= plugin_dir_url(__FILE__) ?>cetak_laporan_peminjaman.php" method="get" class="text-center" target="_blank">
-        <div class="row justify-content-center mb-3">
-            <div class="col-md-2">
-                <label><strong>Periode Transaksi:</strong></label>
+<div class="container my-5">
+    <h2 class="text-center text-primary fw-bold mb-4">Laporan Peminjaman Buku</h2>
+
+    <form action="<?= plugin_dir_url(__FILE__) ?>cetak_laporan_peminjaman.php" method="get" class="mb-4" target="_blank">
+        <div class="row g-3 align-items-end justify-content-center">
+            <div class="col-md-3">
+                <label for="tgl_mulai" class="form-label text-primary fw-semibold">Dari Tanggal:</label>
+                <input type="date" name="tgl_mulai" id="tgl_mulai" class="form-control" 
+                    style="border: 2px solid #3498db; border-radius: 8px; background: #f0f6ff;" required>
             </div>
             <div class="col-md-3">
-                <input type="date" name="tgl_mulai" class="form-control" required>
+                <label for="tgl_selesai" class="form-label text-primary fw-semibold">Sampai Tanggal:</label>
+                <input type="date" name="tgl_selesai" id="tgl_selesai" class="form-control" 
+                    style="border: 2px solid #3498db; border-radius: 8px; background: #f0f6ff;" required>
             </div>
-            <div class="col-md-1 text-center">
-                <span>s/d</span>
-            </div>
-            <div class="col-md-3">
-                <input type="date" name="tgl_selesai" class="form-control" required>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary btn-glow" style="border-radius: 8px;">
+                    <i class="fa fa-print me-1"></i> Cetak Laporan
+                </button>
             </div>
         </div>
-
-        <button type="submit" class="btn btn-primary mt-2">TAMPILKAN</button>
     </form>
 </div>
