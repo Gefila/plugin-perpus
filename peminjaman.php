@@ -116,7 +116,7 @@ if ($result && $result->num_rows > 0) {
                         <th>ID Anggota</th>
                         <th style="width:130px">Nama</th>
                         <th>Buku yang Dipinjam</th>
-                        <th>Copy Buku</th>
+                        <th style="width:130px">Copy Buku</th>
                         <th>Jumlah</th>
                         <th style="width:130px">Aksi</th>
                     </tr>
@@ -140,7 +140,7 @@ if ($result && $result->num_rows > 0) {
                                     <strong><?= htmlspecialchars($id_buku) ?></strong> - <?= htmlspecialchars($b['judul']) ?><br>
                                 <?php endforeach; ?>
                             </td>
-
+ x
                             <td>
                                 <?php foreach ($data['buku'] as $id_buku => $b): ?>
                                     <strong><?= htmlspecialchars($id_buku) ?></strong>:<br>
@@ -152,7 +152,7 @@ if ($result && $result->num_rows > 0) {
 
                             <td class="text-center"><?= $data['total_copy'] ?></td>
                             <td class="text-center">
-                                <a href="admin.php?page=perpus_utama&panggil=tambah_peminjaman.php&edit=<?= urlencode($row['no_peminjaman']) ?>" 
+                                <a href="admin.php?page=perpus_utama&panggil=tambah_peminjaman.php&edit=<?= urlencode($data['no_peminjaman']) ?>" 
                                     class="btn btn-sm btn-warning">
                                         <i class="fa fa-pencil-alt"></i>
                                     </a>
