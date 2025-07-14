@@ -339,7 +339,9 @@ function buatBarisBaru(nomor) {
             <input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku" readonly value="0" min="0" required />
         </td>
         <td class="text-center">
-            <button type="button" class="btn btn-danger btn-sm btn-hapus">-</button>
+            <button type="button" class="btn btn-danger btn-sm btn-hapus">
+            <i class="fa-solid fa-trash"></i>
+            </button>
         </td>
     `;
     return row;
