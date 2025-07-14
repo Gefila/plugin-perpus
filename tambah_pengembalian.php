@@ -5,8 +5,7 @@ function generateNoPengembalian($conn) {
     $r = $conn->query("SELECT MAX(CAST(SUBSTRING(no_pengembalian,3) AS UNSIGNED)) AS max_num FROM pengembalian");
     $row = $r->fetch_assoc();
     $n = ($row && $row['max_num']) ? (int)$row['max_num'] + 1 : 1;
-    // Format dengan leading zero, misal PG001
-    return "PG" . str_pad($n, 3, "0", STR_PAD_LEFT);
+    return "PG" . $n;
 }
 
 // Proses form submit
@@ -33,63 +32,72 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
         $stmt = $conn->prepare("INSERT INTO pengembalian(no_pengembalian, tgl_pengembalian, no_peminjaman) VALUES (?, ?, ?)");
         $stmt->bind_param("sss", $no_pengembalian, $tgl_pengembalian, $no_peminjaman);
         if (!$stmt->execute()) throw new Exception("Gagal simpan pengembalian: " . $stmt->error);
+        $stmt->close();
 
-        // Prepared statements untuk cek, insert bisa, update copy buku
-        $cek_stmt = $conn->prepare("SELECT 1 FROM bisa bs JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian WHERE bs.no_copy_buku = ? AND p.no_peminjaman = ?");
+        // Prepared statements di luar loop
+        $cekSudahKembali = $conn->prepare("
+            SELECT 1 FROM bisa bs
+            JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
+            WHERE bs.no_copy_buku = ? AND p.no_peminjaman = ?
+        ");
+        $cekDipinjamLain = $conn->prepare("
+            SELECT 1 FROM dapat d
+            WHERE d.no_copy_buku = ? AND d.no_peminjaman != ?
+            AND NOT EXISTS (
+                SELECT 1 FROM bisa bs
+                JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
+                WHERE bs.no_copy_buku = d.no_copy_buku AND p.no_peminjaman = d.no_peminjaman
+            )
+            LIMIT 1
+        ");
+        $cekStatus = $conn->prepare("SELECT status_buku FROM copy_buku WHERE no_copy_buku = ?");
         $insert_bisa = $conn->prepare("INSERT INTO bisa(no_pengembalian, no_copy_buku) VALUES (?, ?)");
         $update_copy = $conn->prepare("UPDATE copy_buku SET status_buku='tersedia' WHERE no_copy_buku = ?");
 
         foreach ($copy_buku as $cb) {
-            // Cek apakah buku sudah dikembalikan di peminjaman ini
-            $cek_sudah_kembali = $conn->prepare("SELECT 1 FROM bisa bs JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian WHERE bs.no_copy_buku = ? AND p.no_peminjaman = ?");
-            $cek_sudah_kembali->bind_param("ss", $cb, $no_peminjaman);
-            $cek_sudah_kembali->execute();
-            if ($cek_sudah_kembali->get_result()->num_rows > 0) {
-                throw new Exception("Copy buku $cb sudah dikembalikan sebelumnya.");
-            }
+            // Cek apakah sudah dikembalikan
+            $cekSudahKembali->bind_param("ss", $cb, $no_peminjaman);
+            $cekSudahKembali->execute();
+            $res = $cekSudahKembali->get_result();
+            if ($res->num_rows > 0) throw new Exception("Copy buku $cb sudah dikembalikan sebelumnya.");
 
-            // Cek apakah buku sedang dipinjam di peminjaman lain yang belum dikembalikan
-            $cek_dipinjam_lain = $conn->prepare("
-            SELECT 1
-            FROM dapat d
-            WHERE d.no_copy_buku = ?
-              AND d.no_peminjaman != ?
-              AND EXISTS (
-                  SELECT 1
-                  FROM peminjaman pm
-                  WHERE pm.no_peminjaman = d.no_peminjaman
-              )
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM bisa bs
-                  JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
-                  WHERE bs.no_copy_buku = d.no_copy_buku
-                    AND p.no_peminjaman = d.no_peminjaman
-              )
-            LIMIT 1
-            ");
-            $cek_dipinjam_lain->bind_param("ss", $cb, $no_peminjaman);
-            $cek_dipinjam_lain->execute();
-            if ($cek_dipinjam_lain->get_result()->num_rows > 0) {
-                throw new Exception("Copy buku $cb masih sedang dipinjam dan belum dikembalikan di transaksi lain!");
-            }
+            // Cek apakah sedang dipinjam di peminjaman lain yang belum dikembalikan
+            $cekDipinjamLain->bind_param("ss", $cb, $no_peminjaman);
+            $cekDipinjamLain->execute();
+            $res = $cekDipinjamLain->get_result();
+            if ($res->num_rows > 0) throw new Exception("Copy buku $cb masih sedang dipinjam dan belum dikembalikan di transaksi lain!");
 
-            // Insert bisa & update status buku...
+            // Cek status buku
+            $cekStatus->bind_param("s", $cb);
+            $cekStatus->execute();
+            $resStatus = $cekStatus->get_result()->fetch_assoc();
+            if ($resStatus['status_buku'] != 'dipinjam') throw new Exception("Copy buku $cb tidak dalam status dipinjam.");
+
+            // Insert ke tabel bisa
             $insert_bisa->bind_param("ss", $no_pengembalian, $cb);
             if (!$insert_bisa->execute()) throw new Exception("Gagal simpan detail bisa: " . $insert_bisa->error);
 
+            // Update status buku
             $update_copy->bind_param("s", $cb);
             if (!$update_copy->execute()) throw new Exception("Gagal update status buku: " . $update_copy->error);
         }
 
+        // Tutup prepared statements cek dan insert
+        $cekSudahKembali->close();
+        $cekDipinjamLain->close();
+        $cekStatus->close();
+        $insert_bisa->close();
+        $update_copy->close();
+
         // Hitung hari keterlambatan
         $no_peminjaman_esc = $conn->real_escape_string($no_peminjaman);
         $tgl_harus_kembali_row = $conn->query("SELECT tgl_harus_kembali FROM peminjaman WHERE no_peminjaman = '$no_peminjaman_esc'")->fetch_assoc();
+
         $hari_telat = 0;
         if ($tgl_harus_kembali_row) {
             $tgl_harus_kembali = new DateTime($tgl_harus_kembali_row['tgl_harus_kembali']);
             $tgl_kembali = new DateTime($tgl_pengembalian);
-            $hari_telat = 0;
+
             if ($tgl_kembali > $tgl_harus_kembali) {
                 $hari_telat = (int)$tgl_harus_kembali->diff($tgl_kembali)->days;
             }
@@ -101,12 +109,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
             $row_tarif = $res_tarif->fetch_assoc();
             $tarif_telat = isset($row_tarif['tarif_denda']) ? (int)$row_tarif['tarif_denda'] : 0;
 
-            // Hitung hari keterlambatan
-            $hari_telat = 0;
-            if ($tgl_kembali > $tgl_harus_kembali) {
-                $hari_telat = (int)$tgl_harus_kembali->diff($tgl_kembali)->days;
-            }
-
             if (!empty($copy_buku) && $hari_telat > 0 && $tarif_telat > 0) {
                 $jumlah_copy_telat = count($copy_buku);
                 $subtotal_telat = $tarif_telat * $hari_telat * $jumlah_copy_telat;
@@ -116,11 +118,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
                 if (!$stmt_telat->execute()) {
                     throw new Exception("Gagal simpan denda keterlambatan: " . $stmt_telat->error);
                 }
+                $stmt_telat->close();
             }
         } else {
             throw new Exception("Tarif denda D1 tidak ditemukan.");
         }
-      
+
         // Simpan denda tambahan jika ada
         if (!empty($id_denda_tambahan)) {
             $stmt_tarif = $conn->prepare("SELECT tarif_denda FROM denda WHERE id_denda = ?");
@@ -135,9 +138,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
                 $stmt_denda = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, ?, ?, ?)");
                 $stmt_denda->bind_param("ssii", $no_pengembalian, $id_denda_tambahan, $jumlah_copy, $subtotal_tambahan);
                 if (!$stmt_denda->execute()) throw new Exception("Gagal simpan denda tambahan: " . $stmt_denda->error);
+                $stmt_denda->close();
             }
+            $stmt_tarif->close();
         }
-        error_log("Berhasil commit transaksi. D1 dan denda lainnya disimpan untuk no_pengembalian: $no_pengembalian");
+
         $conn->commit();
         echo "<script>alert('Pengembalian berhasil disimpan!');location='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
         exit;

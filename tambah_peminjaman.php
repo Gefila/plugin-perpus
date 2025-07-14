@@ -39,21 +39,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
         $stmt = $conn->prepare("INSERT INTO peminjaman (no_peminjaman, tgl_peminjaman, tgl_harus_kembali, id_anggota) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("ssss", $no_peminjaman, $tgl_pinjam, $tgl_kembali, $id_anggota);
-        $stmt->execute();
+        if (!$stmt->execute()) throw new Exception("Gagal simpan peminjaman: " . $stmt->error);
+        $stmt->close();
 
         $cek_stmt = $conn->prepare("SELECT status_buku FROM copy_buku WHERE no_copy_buku = ? AND id_buku = ?");
         $cek_aktif_stmt = $conn->prepare("
             SELECT 1 FROM dapat d
-            LEFT JOIN pengembalian p ON d.no_peminjaman = p.no_peminjaman
-            LEFT JOIN bisa b ON b.no_copy_buku = d.no_copy_buku AND b.no_pengembalian = p.no_pengembalian
-            WHERE d.no_copy_buku = ? AND b.no_copy_buku IS NULL
+            WHERE d.no_copy_buku = ? AND NOT EXISTS (
+                SELECT 1 FROM bisa bs
+                JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
+                WHERE bs.no_copy_buku = d.no_copy_buku AND p.no_peminjaman = d.no_peminjaman
+            )
+            LIMIT 1
         ");
         $update_stmt = $conn->prepare("UPDATE copy_buku SET status_buku = 'dipinjam' WHERE no_copy_buku = ?");
         $insert_stmt = $conn->prepare("INSERT INTO dapat (no_peminjaman, no_copy_buku) VALUES (?, ?)");
 
         foreach ($_POST['copy_buku'] as $id_buku => $copies) {
             foreach ($copies as $no_copy) {
-                // Cek apakah status_buku masih tersedia
+                // cek status buku
                 $cek_stmt->bind_param("ss", $no_copy, $id_buku);
                 $cek_stmt->execute();
                 $result = $cek_stmt->get_result();
@@ -63,7 +67,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     throw new Exception("Copy buku $no_copy untuk buku $id_buku sudah tidak tersedia.");
                 }
 
-                // Cek apakah copy buku masih sedang dipinjam (belum dikembalikan di tabel bisa)
+                // cek peminjaman aktif
                 $cek_aktif_stmt->bind_param("s", $no_copy);
                 $cek_aktif_stmt->execute();
                 $result_aktif = $cek_aktif_stmt->get_result();
@@ -71,14 +75,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     throw new Exception("Copy buku $no_copy masih sedang dipinjam dan belum dikembalikan!");
                 }
 
-                // Update status dan simpan
+                // update status & insert dapat
                 $update_stmt->bind_param("s", $no_copy);
-                $update_stmt->execute();
+                if (!$update_stmt->execute()) throw new Exception("Gagal update status buku: " . $update_stmt->error);
 
                 $insert_stmt->bind_param("ss", $no_peminjaman, $no_copy);
-                $insert_stmt->execute();
+                if (!$insert_stmt->execute()) throw new Exception("Gagal simpan detail dapat: " . $insert_stmt->error);
             }
         }
+
+        $cek_stmt->close();
+        $cek_aktif_stmt->close();
+        $update_stmt->close();
+        $insert_stmt->close();
 
         $conn->commit();
         echo "<script>alert('Peminjaman berhasil disimpan!'); window.location.href='admin.php?page=perpus_utama&panggil=peminjaman.php';</script>";
