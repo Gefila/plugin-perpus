@@ -20,19 +20,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_dari) && !empty($tgl_sam
 <div class="container my-5">
     <h2 class="text-center text-primary fw-bold mb-4">Laporan Kunjungan Berdasarkan Tanggal</h2>
 
-    <form method="post" class="mb-4">
-        <div class="row g-3 align-items-end">
+    <form method="post" class="mb-4" id="filterForm">
+        <div class="row g-3 align-items-end justify-content-center">
             <div class="col-md-3">
                 <label for="tgl_dari" class="form-label text-primary fw-semibold">Dari Tanggal:</label>
-                <input type="date" name="tgl_dari" id="tgl_dari" class="form-control"                 style="border: 2px solid #3498db; border-radius: 8px; background: #f0f6ff;" required value="<?= htmlspecialchars($tgl_dari) ?>">
+                <input type="date" name="tgl_dari" id="tgl_dari" class="form-control"
+                    style="border: 2px solid #3498db; border-radius: 8px; background: #f0f6ff;" required
+                    value="<?= htmlspecialchars($tgl_dari) ?>">
             </div>
             <div class="col-md-3">
                 <label for="tgl_sampai" class="form-label text-primary fw-semibold">Sampai Tanggal:</label>
-                <input type="date" name="tgl_sampai" id="tgl_sampai" class="form-control"                 style="border: 2px solid #3498db; border-radius: 8px; background: #f0f6ff;" required value="<?= htmlspecialchars($tgl_sampai) ?>">
+                <input type="date" name="tgl_sampai" id="tgl_sampai" class="form-control"
+                    style="border: 2px solid #3498db; border-radius: 8px; background: #f0f6ff;" required
+                    value="<?= htmlspecialchars($tgl_sampai) ?>">
             </div>
-            <div class="col-md-auto">
+            <div class="col-md-auto d-flex gap-2">
+                <!-- Tombol Tampilkan -->
                 <button type="submit" class="btn btn-primary btn-glow" style="border-radius: 8px;">
                     <i class="fa fa-filter me-1"></i> Tampilkan
+                </button>
+
+                <!-- Tombol Cetak -->
+                <button type="button" class="btn btn-success btn-glow" onclick="cetakLaporan()" style="border-radius: 8px;">
+                    <i class="fa fa-print me-1"></i> Cetak Laporan
                 </button>
             </div>
         </div>
@@ -75,3 +85,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_dari) && !empty($tgl_sam
         </table>
     <?php endif; ?>
 </div>
+
+<!-- Script untuk cetak -->
+<script>
+    function cetakLaporan() {
+        const tglDari = document.getElementById('tgl_dari').value;
+        const tglSampai = document.getElementById('tgl_sampai').value;
+
+        if (!tglDari || !tglSampai) {
+            alert('Silakan pilih rentang tanggal terlebih dahulu!');
+            return;
+        }
+
+        const url = '<?= plugin_dir_url(__FILE__) ?>cetak_laporan_kunjungan.php?tgl_dari=' + tglDari + '&tgl_sampai=' + tglSampai;
+        window.open(url, '_blank');
+    }
+</script>
