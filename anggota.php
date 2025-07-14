@@ -26,7 +26,7 @@ $result = $conn->query("SELECT * FROM anggota ORDER BY id_anggota");
             <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="mb-0">
-                <i class="fas fa-users me-2"></i>Daftar Anggota Perpustakaan
+                <i class="fas fa-users me-2 text-primary"></i>Daftar Anggota Perpustakaan
             </h2>
             <a href="admin.php?page=perpus_utama&panggil=tambah_anggota.php" class="btn btn-primary btn-glow">
                 <i class="fas fa-plus"></i> Tambah Anggota
@@ -62,13 +62,13 @@ $result = $conn->query("SELECT * FROM anggota ORDER BY id_anggota");
                                 <td>$id</td>
                                 <td>$nama</td>
                                 <td>$kelas</td>
-                                <td><span class='perpus-gender-badge perpus-gender-$jk'>$jkText</span></td>
+                               <td><span class='perpus-gender-badge perpus-gender-$jk' style='background-color:" . ($jk === 'male' ? '#3498db' : '#f78fb3') . ";color:#fff;padding:4px 12px;border-radius:16px;display:inline-block;min-width:90px;'>$jkText</span></td>
                                 <td>
                                     <a href='?page=perpus_utama&panggil=tambah_anggota.php&edit=$id' class='btn btn-warning btn-glow btn-sm me-1'>
                                         <i class='fas fa-edit'></i> Edit
                                     </a>
                                     <a href='?page=perpus_utama&panggil=anggota.php&hapus=$id' class='btn btn-danger btn-glow btn-sm' onclick=\"return confirm('Yakin hapus data anggota ini?')\">
-                                        <i class='fas fa-trash'></i> Hapus
+                                        <i class='fas fa-trash '></i> Hapus
                                     </a>
                                 </td>
                             </tr>";

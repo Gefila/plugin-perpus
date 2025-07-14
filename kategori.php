@@ -24,9 +24,9 @@ $results = $wpdb->get_results("SELECT * FROM kategori ORDER BY id_kategori");
 <div class="container my-4">
     <!-- Bagian Header: Judul dan Tombol -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0">
-                <i class="fa fa-list-alt me-2"></i>Daftar Kategori Buku
-            </h4>
+            <h2 class="mb-0">
+                <i class="fa fa-list-alt me-2" style="color:#2980b9"></i>Daftar Kategori Buku
+            </h2>
             <a href="?page=perpus_utama&panggil=tambah_kategori.php" class="btn btn-primary btn-glow">
                 <i class="fa fa-plus"></i> Tambah Kategori
             </a>

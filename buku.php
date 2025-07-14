@@ -49,7 +49,7 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
 
 <style>
     body {
-        background-color: #f8f9fa;
+        background: linear-gradient(to right, #eef3ff, #dce7ff);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
@@ -100,7 +100,7 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
     }
 
     .category-header {
-        background-color: #e3f2fd; /* Warna biru muda */
+        background-color: #acf2ffff; /* Warna biru muda */
         padding: 10px 15px;
         border-radius: 6px;
         margin-bottom: 15px;
@@ -179,7 +179,9 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
 <div class="container py-4">
     <!-- Header Section -->
     <div class="header-section">
-        <h2 class="mb-3">Daftar Buku</h2>
+        <h2 class="mb-3">
+            <i class="fas fa-book text-primary"></i> Daftar Buku Perpustakaan
+        </h2>
         <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Tambah Buku
         </a>
