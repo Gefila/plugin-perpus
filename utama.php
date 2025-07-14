@@ -10,6 +10,7 @@
 function perpus_modulku() {
     $plugin_url = plugin_dir_url(__FILE__);
 
+    
     // Buat koneksi database sekali, pakai konstanta WP untuk host dan user database
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
     if ($conn->connect_error) {

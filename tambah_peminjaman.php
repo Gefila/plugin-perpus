@@ -139,6 +139,16 @@ foreach ($bookData as $id_buku => $data) {
 
 <form method="POST" class="container">
 
+<div class="mb-3 w-auto">
+    <label class="form-label">Nama Anggota</label>
+        <select name="id_anggota" class="form-select" required>
+            <option value="">-- Pilih Anggota --</option>
+                <?php while ($a = $anggota_result->fetch_assoc()) : ?>
+            <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['nm_anggota']) ?></option>
+        <?php endwhile; ?>
+    </select>
+</div>    
+
 <div class="mb-3" style="max-width: 200px;">
     <label class="form-label">Tanggal Pinjam</label>
     <input type="date" name="tgl_pinjam" id="tgl_pinjam" class="form-control form-control-sm" required />
@@ -148,17 +158,6 @@ foreach ($bookData as $id_buku => $data) {
     <label class="form-label">Tanggal Kembali</label>
     <input type="date" name="tgl_kembali" id="tgl_kembali" class="form-control form-control-sm" required />
 </div>
-
-
-    <div class="mb-3 w-auto">
-        <label class="form-label">Nama Anggota</label>
-        <select name="id_anggota" class="form-select" required>
-            <option value="">-- Pilih Anggota --</option>
-            <?php while ($a = $anggota_result->fetch_assoc()) : ?>
-                <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['nm_anggota']) ?></option>
-            <?php endwhile; ?>
-        </select>
-    </div>
 
     <div class="mb-3 bg-light p-3 rounded">
         <table class="table table-bordered" id="tabel_buku">
