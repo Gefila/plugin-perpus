@@ -1,7 +1,7 @@
 <?php
 
 // Ambil data anggota lebih awal, karena dibutuhkan sebelum proses POST
-$anggota_result = $conn->query("SELECT * FROM anggota ORDER BY nm_anggota ASC");
+$anggota_result = $conn->query("SELECT * FROM anggota ORDER BY id_anggota ASC");
 $anggotaData = [];
 while ($row = $anggota_result->fetch_assoc()) {
     $anggotaData[$row['id_anggota']] = $row['nm_anggota'];
@@ -88,211 +88,327 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 ?>
 
 <style>
-/* Container Utama */
-body {
-    background: linear-gradient(120deg, #e0ecff 0%, #f8fcff 100%);
-    min-height: 100vh;
-}
-.form-container {
+/* Main Form Container */
+.perpus-form-container {
     max-width: 900px;
     margin: 2rem auto;
-    padding: 2rem;
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
 
-/* Header Form */
-.form-header {
+/* Form Header */
+.perpus-form-header {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: white;
+    padding: 1.5rem;
     text-align: center;
     margin-bottom: 2rem;
-    color: #2c3e50;
 }
 
-.form-header h2 {
+.perpus-form-header h2 {
+    margin: 0;
     font-weight: 600;
+    font-size: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
 }
 
-/* Baris Form */
-.form-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
+/* Form Body */
+.perpus-form-body {
+    padding: 0 2rem 2rem;
+}
+
+/* Input Groups */
+.perpus-input-group {
     margin-bottom: 1.5rem;
+    position: relative;
 }
 
-/* Grup Input */
-.form-group {
-    flex: 1;
-    min-width: 200px;
-}
-
-/* Label */
-.form-label {
+.perpus-input-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #34495e;
-    font-size: 0.95rem;
+    font-weight: 600;
+    color: #4e73df;
 }
 
-/* Input & Select */
-.form-control {
-    width: 100%;
-    padding: 0.75rem 1rem;
+.perpus-input-wrapper {
+    display: flex;
     border: 1px solid #d1d3e2;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition: border-color 0.3s;
-    background-color: #f8fafc;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-.form-control:focus {
-    border-color: #3498db;
+.perpus-input-wrapper:focus-within {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.25);
+}
+
+.perpus-input-icon {
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fc;
+    color: #4e73df;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #d1d3e2;
+}
+
+.perpus-input-field {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    background-color: white;
 }
 
-/* Checkbox */
-.checkbox-container {
+.perpus-input-field:focus {
+    box-shadow: none;
+}
+
+/* Checkbox Style */
+.perpus-checkbox-container {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 1.8rem;
+    margin: 1.5rem 0;
     cursor: pointer;
+    user-select: none;
 }
 
-.checkbox-container input {
+.perpus-checkbox-container input {
     width: 18px;
     height: 18px;
-    accent-color: #3498db;
+    accent-color: #4e73df;
 }
 
-/* Tombol */
-.btn-group {
+/* Select Styles */
+.perpus-select-wrapper {
+    position: relative;
+}
+
+.perpus-select-wrapper select {
+    appearance: none;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    border: 1px solid #d1d3e2;
+    border-radius: 8px;
+    width: 100%;
+    background-color: white;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.perpus-select-wrapper select:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.25);
+    outline: none;
+}
+
+/* .perpus-input-group input[type="date"] {
+    max-width: 180px;
+    min-width: 120px;
+    width: 100%;
+}
+
+.perpus-input-group label[for="tgl_kunjungan"] + .perpus-input-wrapper {
+    max-width: 220px;
+} */
+
+/* Button Styles */
+.perpus-btn-group {
     display: flex;
-    justify-content: flex-end;
     gap: 1rem;
     margin-top: 2rem;
 }
 
-.btn {
+.perpus-btn {
     padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    font-weight: 500;
+    border-radius: 8px;
+    font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-.btn-primary {
-    background-color: #3498db;
+.perpus-btn-primary {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
     color: white;
 }
 
-.btn-primary:hover {
-    background-color: #2980b9;
+.perpus-btn-primary:hover {
+    background: linear-gradient(135deg, #3e63cf 0%, #123aae 100%);
+    transform: translateY(-2px);
 }
 
-.btn-warning {
-    background-color: #f39c12;
+.perpus-btn-warning {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
     color: white;
 }
 
-.btn-warning:hover {
-    background-color: #e67e22;
+.perpus-btn-warning:hover {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    transform: translateY(-2px);
 }
 
-.btn-secondary {
-    background-color: #f8f9fa;
-    color: #7f8c8d;
+.perpus-btn-secondary {
+    background: #f8f9fc;
+    color: #4e73df;
     border: 1px solid #d1d3e2;
 }
 
-.btn-secondary:hover {
-    background-color: #e2e6ea;
+.perpus-btn-secondary:hover {
+    background: #e2e6ea;
+    color: #4e73df;
 }
 
-/* Responsif */
+/* Alert Messages */
+.perpus-alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.perpus-alert-success {
+    background-color: #d1f3e6;
+    color: #1cc88a;
+    border-left: 4px solid #1cc88a;
+}
+
+.perpus-alert-danger {
+    background-color: #fadbd8;
+    color: #e74a3b;
+    border-left: 4px solid #e74a3b;
+}
+
+/* Responsive Adjustments */
 @media (max-width: 768px) {
-    .form-group {
-        flex: 100%;
+    .perpus-form-container {
+        margin: 1rem;
     }
     
-    .checkbox-container {
-        margin-top: 0;
+    .perpus-form-body {
+        padding: 0 1.5rem 1.5rem;
     }
     
-    .btn-group {
+    .perpus-btn-group {
         flex-direction: column;
+    }
+    
+    .perpus-btn {
+        width: 100%;
     }
 }
 </style>
 
-
-
-<h2 class="text-center mb-4"><i class="fa-solid fa-user-clock text-primary me-2"></i><?= $isEdit ? 'Edit Kunjungan' : 'Tambah Kunjungan' ?></h2>
-
-<form method="post" class="mb-5">
-    <?php if ($isEdit): ?>
-        <input type="hidden" name="id_kunjungan" value="<?= htmlspecialchars($id_kunjungan) ?>">
-    <?php endif; ?>
-
-    <div class="form-row">
-        <div class="form-group col-md-2">
-            <label for="is_non_anggota">
-                <input type="checkbox" id="is_non_anggota" onclick="toggleMode()" <?= !$id_anggota ? '' : '' ?>>
-                Non-Anggota
-            </label>
-        </div>
-
-        <div class="form-group col-md-3" id="form_id_anggota">
-            <label for="id_anggota">ID Pengunjung</label>
-            <select name="id_anggota" id="id_anggota" class="form-control" onchange="isiNama()">
-                <option value="">-- Pilih ID --</option>
-                <?php foreach ($anggotaData as $id => $nama): ?>
-                    <option value="<?= $id ?>" <?= $id == $id_anggota ? 'selected' : '' ?>><?= $id ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="form-group col-md-3" id="form_nama_anggota">
-            <label for="nm_anggota">Nama Pengunjung (Anggota)</label>
-            <input type="text" class="form-control" id="nm_anggota" readonly value="<?= isset($anggotaData[$id_anggota]) ? htmlspecialchars($anggotaData[$id_anggota]) : '' ?>">
-        </div>
-
-        <div class="form-group col-md-3" id="form_nama_manual" style="display:none;">
-            <label for="nama_pengunjung_manual">Nama Pengunjung (Non-Anggota)</label>
-            <input type="text" class="form-control" name="nama_pengunjung_manual" id="nama_pengunjung_manual" value="<?= htmlspecialchars($nama_pengunjung) ?>">
-        </div>
-
-        <div class="form-group col-md-3">
-            <label for="tgl_kunjungan">Tanggal Kunjungan</label>
-            <input type="date" name="tgl_kunjungan" id="tgl_kunjungan" class="form-control" required value="<?= htmlspecialchars($tgl_kunjungan) ?>">
-        </div>
-
-        <div class="form-group col-md-3">
-            <label for="tujuan">Tujuan</label>
-            <select name="tujuan" id="tujuan" class="form-control" required>
-                <option value="">-- Pilih Tujuan --</option>
-                <option value="Membaca" <?= $tujuan == 'Membaca' ? 'selected' : '' ?>>Membaca</option>
-                <option value="Mengerjakan Tugas" <?= $tujuan == 'Mengerjakan Tugas' ? 'selected' : '' ?>>Mengerjakan Tugas</option>
-                <option value="Rekreasi" <?= $tujuan == 'Rekreasi' ? 'selected' : '' ?>>Rekreasi</option>
-                 <option value="Meminjam Buku" <?= $tujuan == 'Meminjam Buku' ? 'selected' : '' ?>>Meminjam Buku</option>
-            </select>
-            </select>
-        </div>
-
-        <div class="form-group col-md-1 d-flex align-items-end">
-            <button type="submit" class="btn btn-<?= $isEdit ? 'warning' : 'primary' ?> btn-block"><?= $isEdit ? 'Update' : 'Simpan' ?></button>
-        </div>
+<div class="perpus-form-container">
+    <div class="perpus-form-header">
+        <h2>
+            <i class="fas fa-user-clock"></i>
+            <?= $isEdit ? 'Edit Kunjungan' : 'Tambah Kunjungan' ?>
+        </h2>
     </div>
-</form>
+    
+    <div class="perpus-form-body">
+        <?php if (isset($_SESSION['message'])) : ?>
+            <div class="perpus-alert perpus-alert-<?= $_SESSION['message_type'] ?>">
+                <i class="fas <?= $_SESSION['message_type'] === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?>"></i>
+                <?= $_SESSION['message'] ?>
+            </div>
+            <?php unset($_SESSION['message']); ?>
+        <?php endif; ?>
+        
+        <form method="POST">
+            <div class="perpus-checkbox-container">
+                <input type="checkbox" id="is_non_anggota" onclick="toggleMode()" <?= !$id_anggota ? '' : '' ?>>
+                <label for="is_non_anggota">Non-Anggota</label>
+            </div>
+            
+            <div class="perpus-form-row">
+                <div class="perpus-input-group" id="form_id_anggota">
+                    <label for="id_anggota">ID Pengunjung</label>
+                    <div class="perpus-select-wrapper">
+                        <select name="id_anggota" id="id_anggota" onchange="isiNama()">
+                            <option value="">-- Pilih ID --</option>
+                            <?php foreach ($anggotaData as $id => $nama): ?>
+                                <option value="<?= $id ?>" <?= $id == $id_anggota ? 'selected' : '' ?>><?= $id ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="perpus-input-group" id="form_nama_anggota">
+                    <label for="nm_anggota">Nama Pengunjung (Anggota)</label>
+                    <div class="perpus-input-wrapper">
+                        <span class="perpus-input-icon">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" class="perpus-input-field" id="nm_anggota" readonly 
+                               value="<?= isset($anggotaData[$id_anggota]) ? htmlspecialchars($anggotaData[$id_anggota]) : '' ?>">
+                    </div>
+                </div>
+                
+                <div class="perpus-input-group" id="form_nama_manual" style="display:<?= !$id_anggota ? 'block' : 'none' ?>;">
+                    <label for="nama_pengunjung_manual">Nama Pengunjung (Non-Anggota)</label>
+                    <div class="perpus-input-wrapper">
+                        <span class="perpus-input-icon">
+                            <i class="fas fa-user-edit"></i>
+                        </span>
+                        <input type="text" class="perpus-input-field" name="nama_pengunjung_manual" id="nama_pengunjung_manual" 
+                               value="<?= htmlspecialchars($nama_pengunjung) ?>">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="perpus-form-row">
+                <div class="perpus-input-group">
+                    <label for="tgl_kunjungan">Tanggal Kunjungan</label>
+                    <div class="perpus-input-wrapper" style="max-width: 220px;">
+                        <span class="perpus-input-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </span>
+                        <input type="date" class="perpus-input-field" style="max-width: 180px; min-width: 120px; width: 100%;" name="tgl_kunjungan" id="tgl_kunjungan" required 
+                               value="<?= htmlspecialchars($tgl_kunjungan) ?>">
+                    </div>
+                </div>
+                
+                <div class="perpus-input-group">
+                    <label for="tujuan">Tujuan</label>
+                    <div class="perpus-select-wrapper">
+                        <select name="tujuan" id="tujuan" required>
+                            <option value="">-- Pilih Tujuan --</option>
+                            <option value="Membaca" <?= $tujuan == 'Membaca' ? 'selected' : '' ?>>Membaca</option>
+                            <option value="Mengerjakan Tugas" <?= $tujuan == 'Mengerjakan Tugas' ? 'selected' : '' ?>>Mengerjakan Tugas</option>
+                            <option value="Rekreasi" <?= $tujuan == 'Rekreasi' ? 'selected' : '' ?>>Rekreasi</option>
+                            <option value="Meminjam Buku" <?= $tujuan == 'Meminjam Buku' ? 'selected' : '' ?>>Meminjam Buku</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="perpus-btn-group">
+                <a href="?page=perpus_utama&panggil=kunjungan.php" class="perpus-btn perpus-btn-secondary">
+                    <i class="fas fa-times"></i> Batal
+                </a>
+                <button type="submit" class="perpus-btn <?= $isEdit ? 'perpus-btn-warning' : 'perpus-btn-primary' ?>">
+                    <i class="fas fa-save"></i> <?= $isEdit ? 'Update' : 'Simpan' ?>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script>
 const anggotaData = <?php echo json_encode($anggotaData); ?>;
@@ -314,5 +430,10 @@ function toggleMode() {
 }
 
 // Atur tampilan awal berdasarkan checkbox
-window.onload = toggleMode;
+window.onload = function() {
+    toggleMode();
+    <?php if (!$isEdit): ?>
+        document.getElementById('tgl_kunjungan').valueAsDate = new Date();
+    <?php endif; ?>
+};
 </script>
