@@ -100,7 +100,7 @@ if ($result && $result->num_rows > 0) {
             <i class="fa-solid fa-book-reader text-primary me-2"></i>Data Peminjaman
         </h3>
         <a href="admin.php?page=perpus_utama&panggil=tambah_peminjaman.php" class="btn btn-primary btn-glow">
-            <i class="fa fa-plus me-1"></i> Tambah Peminjaman
+            <i class="fa fa-plus-circle me-1"></i> Tambah Peminjaman
         </a>
     </div>
 
@@ -143,8 +143,10 @@ if ($result && $result->num_rows > 0) {
 
                             <td>
                                 <?php foreach ($data['buku'] as $id_buku => $b): ?>
-                                    <strong><?= htmlspecialchars($id_buku) ?></strong>: 
-                                    <?= implode(', ', $b['copy']) ?><br>
+                                    <strong><?= htmlspecialchars($id_buku) ?></strong>:<br>
+                                    <?php foreach ($b['copy'] as $copy): ?>
+                                        <?= htmlspecialchars($copy) ?><br>
+                                    <?php endforeach; ?>
                                 <?php endforeach; ?>
                             </td>
 

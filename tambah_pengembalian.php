@@ -50,14 +50,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
 
             // Cek apakah buku sedang dipinjam di peminjaman lain yang belum dikembalikan
             $cek_dipinjam_lain = $conn->prepare("
-                SELECT 1
-                FROM dapat d
-                LEFT JOIN bisa bs ON d.no_copy_buku = bs.no_copy_buku
-                LEFT JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
-                WHERE d.no_copy_buku = ?
-                  AND (p.no_peminjaman IS NULL OR p.no_peminjaman != d.no_peminjaman)
-                  AND d.no_peminjaman != ?
-                LIMIT 1
+            SELECT 1
+            FROM dapat d
+            WHERE d.no_copy_buku = ?
+              AND d.no_peminjaman != ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM peminjaman pm
+                  WHERE pm.no_peminjaman = d.no_peminjaman
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM bisa bs
+                  JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
+                  WHERE bs.no_copy_buku = d.no_copy_buku
+                    AND p.no_peminjaman = d.no_peminjaman
+              )
+            LIMIT 1
             ");
             $cek_dipinjam_lain->bind_param("ss", $cb, $no_peminjaman);
             $cek_dipinjam_lain->execute();
@@ -196,83 +205,112 @@ while ($row = $detail_buku->fetch_assoc()) {
 <head>
 <meta charset="UTF-8" />
 <title>Tambah Pengembalian Buku</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<!-- FontAwesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+<!-- Custom Style (ubah sesuai lokasi file style kamu) -->
+<link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet">
+
 <style>
 .list-group-item label {
     cursor: pointer;
 }
 </style>
 </head>
-<body class="p-4">
 
-<h3>Tambah Pengembalian Buku</h3>
+<body class="p-3">
 
-<form method="POST" id="formPengembalian">
-  <div class="mb-3">
-    <label>Anggota</label>
-    <select name="id_anggota" id="anggotaSelect" class="form-select" onchange="filterPeminjaman()" required>
-      <option value="">-- Pilih Anggota --</option>
-      <?php foreach ($anggotaData as $a): ?>
-        <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['id_anggota'] . " - " . $a['nm_anggota']) ?></option>
-      <?php endforeach; ?>
-    </select>
-  </div>
+<div class="container my-5">
+  <h3 class="text-dark mb-4"><i class="fa-solid fa-book text-primary"></i> Tambah Pengembalian Buku</h3>
 
-  <div class="mb-3">
-    <label>Nomor Peminjaman</label>
-    <select name="no_peminjaman" id="peminjamanSelect" class="form-select" onchange="updateInfo()" required>
-      <option value="">-- Pilih Nomor Peminjaman --</option>
-    </select>
-  </div>
+  <div class="card-glass">
 
-  <div class="mb-3">
-    <label>Tanggal Harus Kembali</label>
-    <input type="text" id="tgl_harus_kembali_display" class="form-control" readonly />
-  </div>
+    <form method="POST" id="formPengembalian">
+      <!-- Anggota -->
+      <div class="mb-3">
+        <label for="anggotaSelect" class="form-label">Anggota</label>
+        <select name="id_anggota" id="anggotaSelect" class="form-select custom-glass-input" onchange="filterPeminjaman()" required>
+          <option value="">-- Pilih Anggota --</option>
+          <?php foreach ($anggotaData as $a): ?>
+            <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['id_anggota'] . " - " . $a['nm_anggota']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
 
-  <div class="mb-3">
-    <label>Tanggal Pengembalian</label>
-    <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="form-control" onchange="updateDenda()" required />
-  </div>
+      <!-- Nomor Peminjaman -->
+      <div class="mb-3">
+        <label for="peminjamanSelect" class="form-label">Nomor Peminjaman</label>
+        <select name="no_peminjaman" id="peminjamanSelect" class="form-select custom-glass-input" onchange="updateInfo()" required>
+          <option value="">-- Pilih Nomor Peminjaman --</option>
+        </select>
+      </div>
 
-  <div class="mb-3">
-    <label>Status Pengembalian</label>
-    <div id="status_pengembalian" class="fw-bold"></div>
-  </div>
+      <!-- Tanggal Harus Kembali -->
+      <div class="mb-3" style="max-width: 220px;">
+        <label for="tgl_harus_kembali_display" class="form-label">Tanggal Harus Kembali</label>
+        <input type="text" id="tgl_harus_kembali_display" class="form-control custom-glass-input readonly-blue" readonly />
+      </div>
 
-  <div class="mb-3">
-    <label>Denda Telat (per hari × per buku)</label>
-    <input type="text" id="denda_telat_display" class="form-control" readonly />
-  </div>
+      <!-- Tanggal Pengembalian -->
+      <div class="mb-3" style="max-width: 220px;">
+        <label for="tglPengembalian" class="form-label">Tanggal Pengembalian</label>
+        <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="form-control custom-glass-input" onchange="updateDenda()" required />
+      </div>
 
-  <div class="mb-3">
-    <label>Denda Tambahan (per buku)</label>
-    <select name="id_denda_tambahan" id="id_denda_tambahan" class="form-select" onchange="updateDenda()">
-      <option value="">-- Pilih Denda Tambahan --</option>
-      <?php
-        $denda_opsional->data_seek(0);
-        while ($d = $denda_opsional->fetch_assoc()):
-      ?>
-        <option value="<?= htmlspecialchars($d['id_denda']) ?>">
-          <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
-        </option>
-      <?php endwhile; ?>
-    </select>
-  </div>
+      <!-- Status Pengembalian -->
+      <div class="mb-3">
+        <label class="form-label">Status Pengembalian</label>
+        <div id="status_pengembalian" class="fw-bold fs-5"></div>
+      </div>
 
-  <div class="mb-3">
-    <label>Total Denda</label>
-    <input type="text" id="total_denda_display" class="form-control" readonly />
-    <input type="hidden" name="tarif_denda" id="tarif_denda" />
-  </div>
+      <!-- Denda Telat -->
+      <div class="mb-3">
+        <label for="denda_telat_display" class="form-label">Denda Telat (per hari × per buku)</label>
+        <input type="text" id="denda_telat_display" class="form-control custom-glass-input readonly-blue" readonly />
+      </div>
 
-  <div class="mb-3">
-    <label>Buku Dikembalikan</label>
-    <div id="tabelBuku"></div>
-  </div>
+      <!-- Denda Tambahan -->
+      <div class="mb-3">
+        <label for="id_denda_tambahan" class="form-label">Denda Tambahan (per buku)</label>
+        <select name="id_denda_tambahan" id="id_denda_tambahan" class="form-select custom-glass-input" onchange="updateDenda()">
+          <option value="">-- None --</option>
+          <?php
+            $denda_opsional->data_seek(0);
+            while ($d = $denda_opsional->fetch_assoc()):
+          ?>
+            <option value="<?= htmlspecialchars($d['id_denda']) ?>">
+              <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
+            </option>
+          <?php endwhile; ?>
+        </select>
+      </div>
 
-  <button name="simpan" class="btn btn-primary">Simpan</button>
-</form>
+      <!-- Total Denda -->
+      <div class="mb-3">
+        <label for="total_denda_display" class="form-label">Total Denda</label>
+        <input type="text" id="total_denda_display" class="form-control fw-bold custom-glass-input readonly-blue" readonly />
+        <input type="hidden" name="tarif_denda" id="tarif_denda" />
+      </div>
+
+      <!-- Buku Dikembalikan -->
+      <div class="mb-3">
+        <label class="form-label">Buku Dikembalikan</label>
+        <div id="tabelBuku"></div>
+      </div>
+
+      <!-- Tombol Simpan -->
+      <button name="simpan" class="btn btn-primary btn-glow">
+        <i class="fa-solid fa-floppy-disk me-1"></i> Simpan
+      </button>
+         <a href="admin.php?page=perpus_utama&panggil=pengembalian.php" class="btn btn-secondary">
+  <i class="fa-solid fa-xmark"></i> Batal
+</a>
+    </form>
+
+  </div> <!-- /.card-glass -->
+</div> <!-- /.container -->
 
 <script>
 const dataPeminjaman = <?= json_encode($peminjamanData) ?>;

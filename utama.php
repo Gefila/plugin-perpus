@@ -69,6 +69,7 @@ function perpus_modulku() {
                             <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=lapkun.php">Lihat Laporan Kunjungan</a></li>
                             <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=laporan_peminjaman.php">Cetak Laporan Peminjaman</a></li>
                             <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=laporan_pengembalian.php">Cetak Laporan Pengembalian</a></li>
+                            <li><a class="dropdown-item" href="admin.php?page=perpus_utama&panggil=laporan_denda.php">Cetak Laporan Denda</a></li>
                         </ul>
                     </li>
 

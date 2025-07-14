@@ -1,6 +1,4 @@
 <?php
-// Asumsi $conn sudah konek ke database MySQL
-
 // Hapus data pengembalian jika ada parameter hapus
 if (isset($_GET['hapus'])) {
     $idHapus = $conn->real_escape_string($_GET['hapus']);
@@ -15,15 +13,14 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
-// Query data pengembalian lengkap dengan total denda per pengembalian
+// Ambil semua data pengembalian dengan struktur detail buku dan copy
 $sql = "
 SELECT
     p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian,
     pm.id_anggota, a.nm_anggota,
     pm.tgl_harus_kembali,
-    GROUP_CONCAT(DISTINCT CONCAT(b.id_buku, ' - ', b.judul_buku) SEPARATOR '<br>') AS buku_list,
-    GROUP_CONCAT(DISTINCT bs.no_copy_buku SEPARATOR ', ') AS no_copy,
-    COUNT(DISTINCT bs.no_copy_buku) AS jumlah,
+    b.id_buku, b.judul_buku,
+    bs.no_copy_buku,
     IFNULL(pd.total_denda, 0) AS total_denda
 FROM pengembalian p
 LEFT JOIN peminjaman pm ON p.no_peminjaman = pm.no_peminjaman
@@ -36,26 +33,49 @@ LEFT JOIN (
     FROM pengembalian_denda
     GROUP BY no_pengembalian
 ) pd ON p.no_pengembalian = pd.no_pengembalian
-GROUP BY p.no_pengembalian
 ORDER BY p.no_pengembalian ASC
 ";
 
 $result = $conn->query($sql);
-
 $data = [];
+
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        $data[] = $row;
+        $no_pengembalian = $row['no_pengembalian'];
+
+        if (!isset($data[$no_pengembalian])) {
+            $data[$no_pengembalian] = [
+                'no_pengembalian' => $no_pengembalian,
+                'no_peminjaman' => $row['no_peminjaman'],
+                'tgl_pengembalian' => $row['tgl_pengembalian'],
+                'id_anggota' => $row['id_anggota'],
+                'nm_anggota' => $row['nm_anggota'],
+                'tgl_harus_kembali' => $row['tgl_harus_kembali'],
+                'total_denda' => $row['total_denda'],
+                'buku' => []
+            ];
+        }
+
+        $id_buku = $row['id_buku'];
+        if ($id_buku) {
+            if (!isset($data[$no_pengembalian]['buku'][$id_buku])) {
+                $data[$no_pengembalian]['buku'][$id_buku] = [
+                    'judul' => $row['judul_buku'],
+                    'copy' => []
+                ];
+            }
+
+            if ($row['no_copy_buku']) {
+                $data[$no_pengembalian]['buku'][$id_buku]['copy'][] = $row['no_copy_buku'];
+            }
+        }
     }
 }
-
 ?>
 
 <!-- Bootstrap & Font Awesome -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-
-<!-- Custom Style (ubah sesuai lokasi file style kamu) -->
 <link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet">
 
 <div class="container my-5">
@@ -64,14 +84,14 @@ if ($result) {
             <i class="fa-solid fa-rotate-left text-primary me-2"></i>Data Pengembalian
         </h3>
         <a href="admin.php?page=perpus_utama&panggil=tambah_pengembalian.php" class="btn btn-primary btn-glow">
-            <i class="fa fa-plus me-1"></i> Tambah Pengembalian
+            <i class="fa fa-plus-circle me-1"></i> Tambah Pengembalian
         </a>
     </div>
 
     <div class="card-glass">
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle text-center">
-                <thead>
+                <thead class="table-dark">
                     <tr>
                         <th>No</th>
                         <th>No Pengembalian</th>
@@ -88,56 +108,69 @@ if ($result) {
                 </thead>
                 <tbody>
                     <?php if (!empty($data)): ?>
-                        <?php $no=1; foreach ($data as $item):
+                        <?php $no=1; foreach ($data as $item): ?>
+                            <?php
                             $tglKembali = strtotime($item['tgl_pengembalian']);
                             $tglHarus = strtotime($item['tgl_harus_kembali']);
                             $hariTelat = 0;
                             if ($tglKembali > $tglHarus) {
                                 $hariTelat = floor(($tglKembali - $tglHarus) / (60 * 60 * 24));
                             }
-                        ?>
-                        <tr>
-                            <td><?= $no ?></td>
-                            <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
-                            <td><?= htmlspecialchars($item['id_anggota']) ?></td>
-                            <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
-                            <td style="text-align:left;"><?= $item['buku_list'] ?></td>
-                            <td><?= htmlspecialchars($item['no_copy']) ?></td>
-                            <td><span class="badge bg-secondary"><?= $item['jumlah'] ?></span></td>
-                            <td><?= date('d M Y', strtotime($item['tgl_pengembalian'])) ?></td>
-                            <td>
-                                <?php 
-                                $tglKembali = strtotime($item['tgl_pengembalian']);
-                                $tglHarus = strtotime($item['tgl_harus_kembali']);
-                                if ($tglKembali > $tglHarus) {
-                                    echo "<span class='badge bg-danger'>Terlambat {$hariTelat} hari </span>";
-                                } else {
-                                    echo "<span class='badge bg-success'>Tepat Waktu</span>";
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                <?php if ($item['total_denda'] > 0): ?>
-                                    <span class="badge bg-warning text-dark">
-                                        Rp <?= number_format($item['total_denda'], 0, ',', '.') ?>
-                                    </span>
-                                <?php else: ?>
-                                    <span class="text-muted">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <a href="admin.php?page=perpus_utama&panggil=pengembalian.php&hapus=<?= urlencode($item['no_pengembalian']) ?>"
-                                   class="btn btn-sm btn-danger"
-                                   onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                    <i class="fa fa-trash"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        <?php $no++; endforeach; ?>
+
+                            $jumlahCopy = 0;
+                            foreach ($item['buku'] as $b) {
+                                $jumlahCopy += count($b['copy']);
+                            }
+                            ?>
+                            <tr>
+                                <td><?= $no++ ?></td>
+                                <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
+                                <td><?= htmlspecialchars($item['id_anggota']) ?></td>
+                                <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
+                                <td style="text-align:left;">
+                                    <?php foreach ($item['buku'] as $id_buku => $b): ?>
+                                        <strong><?= htmlspecialchars($id_buku) ?></strong> - <?= htmlspecialchars($b['judul']) ?><br>
+                                    <?php endforeach; ?>
+                                </td>
+                                <td style="text-align:left;">
+                                    <?php foreach ($item['buku'] as $id_buku => $b): ?>
+                                        <strong><?= htmlspecialchars($id_buku) ?></strong>:<br>
+                                        <?php foreach ($b['copy'] as $copy): ?>
+                                            <?= htmlspecialchars($copy) ?><br>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </td>
+                                <td><span class="badge bg-secondary"><?= $jumlahCopy ?></span></td>
+                                <td><?= date('d M Y', strtotime($item['tgl_pengembalian'])) ?></td>
+                                <td>
+                                    <?php if ($hariTelat > 0): ?>
+                                        <span class="badge bg-danger">Terlambat <?= $hariTelat ?> hari</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-success">Tepat Waktu</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($item['total_denda'] > 0): ?>
+                                        <span class="badge bg-warning text-dark">
+                                            Rp <?= number_format($item['total_denda'], 0, ',', '.') ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <a href="admin.php?page=perpus_utama&panggil=pengembalian.php&hapus=<?= urlencode($item['no_pengembalian']) ?>"
+                                       class="btn btn-sm btn-danger"
+                                       onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                        <i class="fa fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     <?php else: ?>
-                    <tr>
-                        <td colspan="11" class="text-muted">Tidak ada data pengembalian.</td>
-                    </tr>
+                        <tr>
+                            <td colspan="11" class="text-muted">Tidak ada data pengembalian.</td>
+                        </tr>
                     <?php endif; ?>
                 </tbody>
             </table>

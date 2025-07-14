@@ -1,9 +1,42 @@
-/* perpus-style.css */
+/* === Global Body & Font === */
 body {
     background: linear-gradient(to right, #eef3ff, #dce7ff);
     font-family: 'Segoe UI', sans-serif;
+    color: #1a3d7c;
 }
 
+/* === Label dan Judul === */
+label, .form-label {
+    color: #1a3d7c;
+    font-weight: 600;
+}
+
+/* === Input dan Select Glass Look === */
+.custom-glass-input {
+    background: rgba(255, 255, 255, 0.7);
+    border: 2px solid #2980b9;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(102, 116, 255, 0.1);
+    font-family: 'Segoe UI', sans-serif;
+    color: #1a3d7c;
+    transition: 0.3s ease;
+}
+
+.custom-glass-input:focus {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #3498db;
+    box-shadow: 0 0 6px rgba(41, 128, 185, 0.5);
+    outline: none;
+    color: #1a3d7c;
+}
+
+/* === Read-only Biru Muda === */
+.readonly-blue {
+    background-color: #e7f1ff !important;
+    color: #1a3d7c;
+}
+
+/* === Card Wrapper === */
 .card-glass {
     background: rgba(255, 255, 255, 0.85);
     border-radius: 20px;
@@ -11,6 +44,7 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
+/* === Tombol Glow === */
 .btn-glow {
     transition: 0.3s ease;
     box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
@@ -21,6 +55,7 @@ body {
     box-shadow: 0 6px 20px rgba(99, 150, 226, 0.35);
 }
 
+/* === Tabel Header === */
 .table thead th {
     background: linear-gradient(to right, #2980b9, #3498db);
     color: #fff;
@@ -40,6 +75,7 @@ body {
     padding: 0.75rem;
 }
 
+/* === Badge untuk Copy Buku === */
 .badge-copy {
     background-color: #8a92ec;
     padding: 5px 10px;

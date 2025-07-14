@@ -124,22 +124,31 @@ foreach ($bookData as $id_buku => $data) {
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tambah Peminjaman Buku</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-<style>
-    /* Agar checkbox dan label rapih */
-    .copy-buku-container label {
-        cursor: pointer;
-    }
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tambah Peminjaman</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+    <!-- Custom Style -->
+    <link href="<?php echo plugins_url('perpus-style.css', __FILE__); ?>" rel="stylesheet" />
+    
+    <style>
+        /* Tambahan styling jika dibutuhkan */
+        .copy-buku-container label {
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body class="p-3">
 
-<h3 style="text-align: center;">Tambah Peminjaman Buku</h3>
+<div class="container my-5">
+  <h3 class="text-dark mb-4"><i class="fa-solid fa-book-open text-primary"></i> Tambah Peminjaman Buku</h3>
 
-<form method="POST" class="container">
+  <div class="card-glass">
+    <form method="POST" id="formPeminjaman">
 
 <div class="mb-3 w-auto">
     <label class="form-label">Nama Anggota</label>
@@ -197,21 +206,31 @@ foreach ($bookData as $id_buku => $data) {
                     <div class="copy-buku-container" style="font-size: 0.85rem;"></div>
                 </td>
                 <td>
-                    <input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku" readonly value="0" min="0" required />
+                    <input type="number" name="jumlah[]" class="form-control form-control-sm jumlah-buku readonly-blue" readonly value="0" min="0" required />
                 </td>
                 <td class="text-center">
-                    <button type="button" class="btn btn-danger btn-sm btn-hapus">-</button>
+                    <button type="button" class="btn btn-danger btn-sm btn-hapus">
+                    <i class="fa-solid fa-trash"></i>
+                    </button>
                 </td>
             </tr>
 
             </tbody>
         </table>
-        <button type="button" id="btn-tambah" class="btn btn-success btn-sm">Tambah Baris</button>
+        <button type="button" id="btn-tambah" class="btn btn-success btn-sm">
+        <i class="fa-solid fa-plus me-1"></i> Tambah Baris
+        </button>
     </div>
 
-    <button type="submit" class="btn btn-primary">Simpan Peminjaman</button>
-    <a href="admin.php?page=perpus_utama&panggil=peminjaman.php" class="btn btn-secondary">Batal</a>
+    <button type="submit" class="btn btn-primary btn-glow">
+    <i class="fa-solid fa-floppy-disk me-1"></i> Simpan
+    </button>
+   <a href="admin.php?page=perpus_utama&panggil=peminjaman.php" class="btn btn-secondary">
+  <i class="fa-solid fa-xmark"></i> Batal
+</a>
 </form>
+  </div> <!-- /.card-glass -->
+</div> <!-- /.container -->
 
 <script>
 const bookData = <?= json_encode($bookData) ?>;
