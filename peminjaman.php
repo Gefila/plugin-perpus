@@ -140,7 +140,6 @@ if ($result && $result->num_rows > 0) {
                                     <strong><?= htmlspecialchars($id_buku) ?></strong> - <?= htmlspecialchars($b['judul']) ?><br>
                                 <?php endforeach; ?>
                             </td>
- x
                             <td>
                                 <?php foreach ($data['buku'] as $id_buku => $b): ?>
                                     <strong><?= htmlspecialchars($id_buku) ?></strong>:<br>
