@@ -36,10 +36,10 @@ if (isset($_GET['edit'])) {
         
         // Ambil detail buku yang dipinjam
         $detail_result = $conn->query("
-            SELECT d.no_copy_buku, cb.id_buku 
-            FROM dapat d
-            JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
-            WHERE d.no_peminjaman = '$no_peminjaman'
+            SELECT cb.no_copy_buku, cb.id_buku, b.judul_buku
+            FROM copy_buku cb
+            JOIN buku b ON cb.id_buku = b.id_buku
+            WHERE cb.status_buku = 'tersedia'
         ");
         
         while ($detail = $detail_result->fetch_assoc()) {
@@ -234,7 +234,23 @@ while ($b = $buku_result->fetch_assoc()) {
 // Ambil data copy buku tersedia per buku
 $copyBukuAll = [];
 foreach ($bookData as $id_buku => $data) {
-    $copyResult = $conn->query("SELECT no_copy_buku FROM copy_buku WHERE id_buku = '$id_buku' AND status_buku = 'tersedia' ORDER BY no_copy_buku ASC");
+$copyResult = $conn->query("
+    SELECT cb.no_copy_buku 
+    FROM copy_buku cb
+    WHERE cb.id_buku = '$id_buku'
+    AND NOT EXISTS (
+        SELECT 1 FROM dapat d
+        WHERE d.no_copy_buku = cb.no_copy_buku
+        AND NOT EXISTS (
+            SELECT 1 FROM bisa bs
+            JOIN pengembalian p ON p.no_pengembalian = bs.no_pengembalian
+            WHERE bs.no_copy_buku = d.no_copy_buku
+            AND p.no_peminjaman = d.no_peminjaman
+        )
+    )
+    ORDER BY cb.no_copy_buku ASC
+");
+
     $copies = [];
     while ($c = $copyResult->fetch_assoc()) {
         $copies[] = $c['no_copy_buku'];

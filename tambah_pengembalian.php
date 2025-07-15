@@ -187,7 +187,8 @@ $detail_buku = $conn->query("
     FROM dapat d
     JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
     JOIN buku b ON cb.id_buku = b.id_buku
-    WHERE NOT EXISTS (
+    WHERE cb.status_buku = 'dipinjam'
+    AND NOT EXISTS (
         SELECT 1 FROM bisa bs
         JOIN pengembalian p ON bs.no_pengembalian = p.no_pengembalian
         WHERE bs.no_copy_buku = d.no_copy_buku AND p.no_peminjaman = d.no_peminjaman
@@ -444,6 +445,14 @@ function resetDenda() {
   document.getElementById('total_denda_display').value = '';
   document.getElementById('tarif_denda').value = '';
 }
+
+function toggleSubmit() {
+  const jumlah = document.querySelectorAll('input[name="no_copy_buku[]"]:checked').length;
+  document.querySelector('[name="simpan"]').disabled = jumlah === 0;
+}
+document.addEventListener('change', function(e) {
+  if (e.target.name === 'no_copy_buku[]') toggleSubmit();
+});
 
 </script>
 
