@@ -331,6 +331,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php endif; ?>
         
         <form method="POST">
+            <?php if ($isEdit): ?>
+                <input type="hidden" name="id_kunjungan" value="<?= htmlspecialchars($id_kunjungan) ?>">
+            <?php endif; ?>
             <div class="perpus-checkbox-container">
                 <input type="checkbox" id="is_non_anggota" onclick="toggleMode()" <?= !$id_anggota ? '' : '' ?>>
                 <label for="is_non_anggota">Non-Anggota</label>
