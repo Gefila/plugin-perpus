@@ -63,12 +63,33 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
 ?>
 
 <style>
+    html, body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container-dashboard {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.section-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 10px;
+}
+
     .card{
         max-width: 100%;
     }
 </style>
 <!-- ===== HTML DIMULAI DI SINI ===== -->
-<div style="padding-left: 5%; padding-right: 5%;">
+<div class="container-dashboard">
+    <div class="section-scrollable px-4">
 
     <!-- Kartu Statistik -->
     <div class="row text-center">
@@ -182,6 +203,7 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
             </table>
         </div>
     </div>
+</div>
 </div>
 
 
