@@ -36,13 +36,15 @@ SELECT
 FROM peminjaman p
 JOIN anggota a ON a.id_anggota = p.id_anggota
 JOIN dapat d ON d.no_peminjaman = p.no_peminjaman
-JOIN copy_buku cb ON cb.no_copy_buku = d.no_copy_buku
+JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
 JOIN buku b ON b.id_buku = cb.id_buku
-WHERE NOT EXISTS (
-    SELECT 1 FROM pengembalian k
+WHERE p.tgl_harus_kembali < CURDATE()
+AND cb.no_copy_buku NOT IN (
+    SELECT b.no_copy_buku
+    FROM bisa b
+    JOIN pengembalian k ON k.no_pengembalian = b.no_pengembalian
     WHERE k.no_peminjaman = p.no_peminjaman
 )
-AND p.tgl_harus_kembali < CURDATE()
 ORDER BY p.tgl_harus_kembali ASC
 ";
 
@@ -162,7 +164,7 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                     <li class="list-group-item small">
                                         <strong><?= $row['nm_anggota'] ?></strong><br>
                                         <div>
-                                            <em><?= $row['no_peminjaman'] ?></em> - 
+                                            <em><?= $row['no_peminjaman'] ?></em> -
                                             <?= date('d M Y', strtotime($row['tgl_peminjaman'])) ?>
                                         </div>
                                     </li>
@@ -184,7 +186,7 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                     <li class="list-group-item small">
                                         <strong><?= $row['nm_anggota'] ?></strong><br>
                                         <div>
-                                            <em><?= $row['no_pengembalian'] ?></em> - 
+                                            <em><?= $row['no_pengembalian'] ?></em> -
                                             <?= date('d M Y', strtotime($row['tgl_pengembalian'])) ?>
                                         </div>
                                     </li>
@@ -211,7 +213,6 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                     <th>No Peminjaman</th>
                                     <th>Nama Anggota</th>
                                     <th>Judul Buku</th>
-                                    <th>Copy Buku</th>
                                     <th>Deadline</th>
                                     <th>Telat</th>
                                 </tr>
@@ -221,17 +222,21 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                 if (!empty($data_terlambat)) {
                                     $no = 1;
                                     foreach ($data_terlambat as $row) {
+                                        $judulCopyGabungan = '';
                                         foreach ($row['buku'] as $buku) {
-                                            echo "<tr>
-                        <td>{$row['no_peminjaman']}</td>
-                        <td>{$row['nm_anggota']}</td>
-                        <td>{$buku['judul']}</td>
-                        <td>" . implode(', ', $buku['copy']) . "</td>
-                        <td>" . date('d F Y', strtotime($row['tgl_harus_kembali'])) . "</td>
-                        <td>{$row['telat']} hari</td>
-                    </tr>";
-                                            $no++;
+                                            $judul = htmlspecialchars($buku['judul']);
+                                            $copy = implode(', ', $buku['copy']);
+                                            $judulCopyGabungan .= "<strong>$judul</strong> ($copy)<br>";
                                         }
+
+                                        echo "
+                                        <tr>
+                                            <td>{$row['no_peminjaman']}</td>
+                                            <td>{$row['nm_anggota']}</td>
+                                            <td>$judulCopyGabungan</td>
+                                            <td>" . date('d F Y', strtotime($row['tgl_harus_kembali'])) . "</td>
+                                            <td>{$row['telat']} hari</td>
+                                        </tr>";
                                     }
                                 } else {
                                     echo "<tr><td colspan='6' class='text-center'>Tidak ada keterlambatan.</td></tr>";
