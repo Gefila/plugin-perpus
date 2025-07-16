@@ -1,5 +1,32 @@
 <?php
-// koneksi $conn diasumsikan sudah tersedia
+$editMode = false;
+$editData = null;
+
+if (isset($_GET['edit'])) {
+    $editMode = true;
+    $no_pengembalian_edit = $conn->real_escape_string($_GET['edit']);
+
+    // Ambil data pengembalian untuk ditampilkan di form
+    $res = $conn->query("
+        SELECT p.*, pm.id_anggota
+        FROM pengembalian p
+        JOIN peminjaman pm ON p.no_peminjaman = pm.no_peminjaman
+        WHERE p.no_pengembalian = '$no_pengembalian_edit'
+    ");
+
+    if ($res && $res->num_rows > 0) {
+        $editData = $res->fetch_assoc();
+        $no_pinjam = $editData['no_peminjaman'];
+        $res_kembali = $conn->query("SELECT tgl_harus_kembali FROM peminjaman WHERE no_peminjaman = '$no_pinjam'");
+        if ($res_kembali && $res_kembali->num_rows > 0) {
+            $editData['tgl_harus_kembali'] = $res_kembali->fetch_assoc()['tgl_harus_kembali'];
+        }
+
+    } else {
+        echo "<script>alert('Data pengembalian tidak ditemukan!');location='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
+        exit;
+    }
+}
 
 function generateNoPengembalian($conn) {
     $r = $conn->query("SELECT MAX(CAST(SUBSTRING(no_pengembalian,3) AS UNSIGNED)) AS max_num FROM pengembalian");
@@ -9,20 +36,62 @@ function generateNoPengembalian($conn) {
 }
 
 // Proses form submit
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
-    $no_pengembalian = generateNoPengembalian($conn);
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $tgl_pengembalian = $_POST['tgl_pengembalian'] ?? '';
-    $no_peminjaman = $_POST['no_peminjaman'] ?? '';
     $id_denda_tambahan = $_POST['id_denda_tambahan'] ?? null;
-    $copy_buku = $_POST['no_copy_buku'] ?? [];
 
-    if (empty($copy_buku)) {
-        echo "<script>alert('Pilih minimal satu buku untuk dikembalikan!');history.back();</script>";
-        exit;
-    }
-    if (!$tgl_pengembalian || !$no_peminjaman) {
-        echo "<script>alert('Tanggal pengembalian dan nomor peminjaman harus diisi!');history.back();</script>";
-        exit;
+    // MODE EDIT
+    if (isset($_POST['edit_mode']) && $_POST['edit_mode'] == '1') {
+        $no_pengembalian_edit = $_POST['no_pengembalian'] ?? '';
+        if (!$no_pengembalian_edit || !$tgl_pengembalian) {
+            echo "<script>alert('Data tidak lengkap untuk proses edit!');history.back();</script>";
+            exit;
+        }
+
+        $conn->begin_transaction();
+        try {
+            // Update tanggal pengembalian
+            $conn->query("UPDATE pengembalian SET tgl_pengembalian = '$tgl_pengembalian' WHERE no_pengembalian = '$no_pengembalian_edit'");
+
+            // Hapus denda tambahan lama
+            $conn->query("DELETE FROM pengembalian_denda WHERE no_pengembalian = '$no_pengembalian_edit' AND id_denda = 'D1'");
+
+            $jumlah_copy = $conn->query("SELECT COUNT(*) AS jml FROM bisa WHERE no_pengembalian = '$no_pengembalian_edit'")->fetch_assoc()['jml'];
+           // Ambil no_peminjaman dari pengembalian
+            $res_peminjaman = $conn->query("SELECT no_peminjaman FROM pengembalian WHERE no_pengembalian = '$no_pengembalian_edit'");
+            if (!$res_peminjaman || $res_peminjaman->num_rows === 0) {
+                throw new Exception("Tidak dapat menemukan no_peminjaman dari no_pengembalian: $no_pengembalian_edit");
+            }
+            $no_peminjaman_edit = $res_peminjaman->fetch_assoc()['no_peminjaman'];
+
+            $res_kembali = $conn->query("SELECT tgl_harus_kembali FROM peminjaman WHERE no_peminjaman = '$no_peminjaman_edit'");
+
+            $res_tarif = $conn->query("SELECT tarif_denda FROM denda WHERE id_denda = 'D1'");
+
+            if ($res_kembali && $res_tarif && $res_kembali->num_rows > 0 && $res_tarif->num_rows > 0) {
+                $tgl_harus = new DateTime($res_kembali->fetch_assoc()['tgl_harus_kembali']);
+                $tgl_pengembalian_dt = new DateTime($tgl_pengembalian);
+                $hari_telat = max(0, $tgl_harus->diff($tgl_pengembalian_dt)->days);
+                $tarif_d1 = (int)$res_tarif->fetch_assoc()['tarif_denda'];
+
+                if ($hari_telat > 0 && $tarif_d1 > 0) {
+                    $subtotal_telat = $hari_telat * $tarif_d1 * $jumlah_copy;
+                    $stmt_telat = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, 'D1', ?, ?)");
+                    $stmt_telat->bind_param("sii", $no_pengembalian_edit, $jumlah_copy, $subtotal_telat);
+                    $stmt_telat->execute();
+                    $stmt_telat->close();
+                }
+            }
+
+
+            $conn->commit();
+            echo "<script>alert('Data pengembalian berhasil diperbarui!');location='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
+            exit;
+        } catch (Exception $e) {
+            $conn->rollback();
+            echo "<script>alert('Gagal update data: " . addslashes($e->getMessage()) . "');history.back();</script>";
+            exit;
+        }
     }
 
     $conn->begin_transaction();
@@ -233,93 +302,149 @@ while ($row = $detail_buku->fetch_assoc()) {
 
   <div class="card-glass">
 
-    <form method="POST" id="formPengembalian">
-      <!-- Anggota -->
-      <div class="mb-3">
-        <label for="anggotaSelect" class="form-label">Anggota</label>
-        <select name="id_anggota" id="anggotaSelect" class="form-select custom-glass-input" onchange="filterPeminjaman()" required>
-          <option value="">-- Pilih Anggota --</option>
-          <?php foreach ($anggotaData as $a): ?>
-            <option value="<?= htmlspecialchars($a['id_anggota']) ?>"><?= htmlspecialchars($a['id_anggota'] . " - " . $a['nm_anggota']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
+<form method="POST" id="formPengembalian">
+  <?php if ($editMode): ?>
+    <input type="hidden" name="edit_mode" value="1">
+    <input type="hidden" name="no_pengembalian" value="<?= htmlspecialchars($editData['no_pengembalian']) ?>">
+    <input type="hidden" id="hidden_tgl_harus_kembali" value="<?= htmlspecialchars($editData['tgl_harus_kembali']) ?>">
+  <?php endif; ?>
 
-      <!-- Nomor Peminjaman -->
-      <div class="mb-3">
-        <label for="peminjamanSelect" class="form-label">Nomor Peminjaman</label>
-        <select name="no_peminjaman" id="peminjamanSelect" class="form-select custom-glass-input" onchange="updateInfo()" required>
-          <option value="">-- Pilih Nomor Peminjaman --</option>
-        </select>
-      </div>
+    <!-- Anggota (Disabled saat edit) -->
+    <div class="mb-3">
+      <label for="anggotaSelect" class="form-label">Anggota</label>
+      <select name="id_anggota" id="anggotaSelect" class="form-select custom-glass-input" onchange="filterPeminjaman()" <?= $editMode ? 'disabled' : 'required' ?>>
+        <option value="">-- Pilih Anggota --</option>
+        <?php foreach ($anggotaData as $a): ?>
+          <option value="<?= htmlspecialchars($a['id_anggota']) ?>"
+            <?= $editMode && $editData['id_anggota'] == $a['id_anggota'] ? 'selected' : '' ?>>
+            <?= htmlspecialchars($a['id_anggota'] . " - " . $a['nm_anggota']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
 
-      <!-- Tanggal Harus Kembali -->
-      <div class="mb-3" style="max-width: 220px;">
-        <label for="tgl_harus_kembali_display" class="form-label">Tanggal Harus Kembali</label>
-        <input type="text" id="tgl_harus_kembali_display" class="form-control custom-glass-input readonly-blue" readonly />
-      </div>
+    <!-- Nomor Peminjaman (Disabled saat edit) -->
+    <div class="mb-3">
+      <label for="peminjamanSelect" class="form-label">Nomor Peminjaman</label>
+      <select name="no_peminjaman" id="peminjamanSelect" class="form-select custom-glass-input" onchange="updateInfo()" <?= $editMode ? 'disabled' : 'required' ?>>
+        <option value="">-- Pilih Nomor Peminjaman --</option>
+        <?php if ($editMode): ?>
+          <option value="<?= htmlspecialchars($editData['no_peminjaman']) ?>" selected>
+            <?= htmlspecialchars($editData['no_peminjaman']) ?>
+          </option>
+        <?php endif; ?>
+      </select>
+    </div>
 
-      <!-- Tanggal Pengembalian -->
-      <div class="mb-3" style="max-width: 220px;">
-        <label for="tglPengembalian" class="form-label">Tanggal Pengembalian</label>
-        <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="form-control custom-glass-input" onchange="updateDenda()" required />
-      </div>
+    <!-- Tanggal Harus Kembali (Read Only) -->
+    <div class="mb-3" style="max-width: 220px;">
+      <label for="tgl_harus_kembali_display" class="form-label">Tanggal Harus Kembali</label>
+          <input type="text" id="tgl_harus_kembali_display" class="form-control custom-glass-input readonly-blue"
+       value="<?= ($editMode && !empty($editData['tgl_harus_kembali']) && strtotime($editData['tgl_harus_kembali'])) ? date('d F Y', strtotime($editData['tgl_harus_kembali'])) : '' ?>" readonly />
+    </div>
 
-      <!-- Status Pengembalian -->
-      <div class="mb-3">
-        <label class="form-label">Status Pengembalian</label>
-        <div id="status_pengembalian" class="fw-bold fs-5"></div>
-      </div>
+    <!-- Tanggal Pengembalian -->
+    <div class="mb-3" style="max-width: 220px;">
+      <label for="tglPengembalian" class="form-label">Tanggal Pengembalian</label>
+      <input type="date" name="tgl_pengembalian" id="tglPengembalian"
+            value="<?= $editMode ? htmlspecialchars($editData['tgl_pengembalian']) : '' ?>"
+            class="form-control custom-glass-input" onchange="updateDenda()" required />
+    </div>
 
-      <!-- Denda Telat -->
-      <div class="mb-3">
-        <label for="denda_telat_display" class="form-label">Denda Telat (per hari × per buku)</label>
-        <input type="text" id="denda_telat_display" class="form-control custom-glass-input readonly-blue" readonly />
-      </div>
+    <!-- Status Pengembalian -->
+    <div class="mb-3">
+      <label class="form-label">Status Pengembalian</label>
+      <div id="status_pengembalian" class="fw-bold fs-5"></div>
+    </div>
 
-      <!-- Denda Tambahan -->
-      <div class="mb-3">
-        <label for="id_denda_tambahan" class="form-label">Denda Tambahan (per buku)</label>
-        <select name="id_denda_tambahan" id="id_denda_tambahan" class="form-select custom-glass-input" onchange="updateDenda()">
-          <option value="">-- None --</option>
+    <!-- Denda Telat -->
+    <div class="mb-3">
+      <label for="denda_telat_display" class="form-label">Denda Telat (per hari × per buku)</label>
+      <input type="text" id="denda_telat_display" class="form-control custom-glass-input readonly-blue" readonly />
+    </div>
+
+    <!-- Denda Tambahan -->
+    <div class="mb-3">
+      <label for="id_denda_tambahan" class="form-label">Denda Tambahan (per buku)</label>
+      <select name="id_denda_tambahan" id="id_denda_tambahan" class="form-select custom-glass-input" onchange="updateDenda()">
+        <option value="">-- None --</option>
+        <?php
+          $denda_opsional->data_seek(0);
+          while ($d = $denda_opsional->fetch_assoc()):
+        ?>
+          <option value="<?= htmlspecialchars($d['id_denda']) ?>"
+            <?= ($editMode && $conn->query("SELECT 1 FROM pengembalian_denda WHERE no_pengembalian = '" . $editData['no_pengembalian'] . "' AND id_denda = '" . $d['id_denda'] . "'")->num_rows > 0) ? 'selected' : '' ?>>
+            <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
+          </option>
+        <?php endwhile; ?>
+      </select>
+    </div>
+
+    <!-- Total Denda -->
+    <div class="mb-3">
+      <label for="total_denda_display" class="form-label">Total Denda</label>
+      <input type="text" id="total_denda_display" class="form-control fw-bold custom-glass-input readonly-blue" readonly />
+      <input type="hidden" name="tarif_denda" id="tarif_denda" />
+    </div>
+
+    <!-- Buku Dikembalikan (Non-editable saat edit) -->
+    <div class="mb-3">
+      <label class="form-label">Buku Dikembalikan</label>
+      <div id="tabelBuku">
+        <?php if ($editMode): ?>
           <?php
-            $denda_opsional->data_seek(0);
-            while ($d = $denda_opsional->fetch_assoc()):
+          $copy_result = $conn->query("
+              SELECT b.id_buku, b.judul_buku, cb.no_copy_buku
+              FROM bisa bs
+              JOIN copy_buku cb ON bs.no_copy_buku = cb.no_copy_buku
+              JOIN buku b ON cb.id_buku = b.id_buku
+              WHERE bs.no_pengembalian = '" . $editData['no_pengembalian'] . "'
+          ");
+          if ($copy_result && $copy_result->num_rows > 0):
+            echo '<ul class="list-group">';
+            while ($b = $copy_result->fetch_assoc()):
           ?>
-            <option value="<?= htmlspecialchars($d['id_denda']) ?>">
-              <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
-            </option>
-          <?php endwhile; ?>
-        </select>
+              <li class="list-group-item">
+                <label>
+                  <input type="checkbox" name="no_copy_buku[]" value="<?= $b['no_copy_buku'] ?>" checked onchange="updateDenda()">
+                  <?= $b['id_buku'] ?> - <?= $b['judul_buku'] ?> (Copy: <?= $b['no_copy_buku'] ?>)
+                </label>
+              </li>
+          <?php
+            endwhile;
+            echo '</ul>';
+          endif;
+          ?>
+        <?php endif; ?>
       </div>
+    </div>
 
-      <!-- Total Denda -->
-      <div class="mb-3">
-        <label for="total_denda_display" class="form-label">Total Denda</label>
-        <input type="text" id="total_denda_display" class="form-control fw-bold custom-glass-input readonly-blue" readonly />
-        <input type="hidden" name="tarif_denda" id="tarif_denda" />
-      </div>
-
-      <!-- Buku Dikembalikan -->
-      <div class="mb-3">
-        <label class="form-label">Buku Dikembalikan</label>
-        <div id="tabelBuku"></div>
-      </div>
-
-      <!-- Tombol Simpan -->
-      <button name="simpan" class="btn btn-primary btn-glow">
-        <i class="fa-solid fa-floppy-disk me-1"></i> Simpan
-      </button>
-         <a href="admin.php?page=perpus_utama&panggil=pengembalian.php" class="btn btn-secondary">
-  <i class="fa-solid fa-xmark"></i> Batal
-</a>
-    </form>
+    <!-- Tombol Simpan -->
+    <button name="simpan" class="btn btn-primary btn-glow">
+      <i class="fa-solid fa-floppy-disk me-1"></i> <?= $editMode ? 'Simpan Perubahan' : 'Simpan' ?>
+    </button>
+    <a href="admin.php?page=perpus_utama&panggil=pengembalian.php" class="btn btn-secondary">
+      <i class="fa-solid fa-xmark"></i> Batal
+    </a>
+  </form>
+  
 
   </div> <!-- /.card-glass -->
 </div> <!-- /.container -->
 
 <script>
 const dataPeminjaman = <?= json_encode($peminjamanData) ?>;
+const noPeminjamanEdit = <?= json_encode($editMode ? $editData['no_peminjaman'] : null) ?>;
+
+<?php if ($editMode): ?>
+  // Inject data tgl_harus_kembali agar tetap bisa terbaca saat updateDenda dipanggil
+  if (!(dataPeminjaman["<?= $editData['id_anggota'] ?>"])) dataPeminjaman["<?= $editData['id_anggota'] ?>"] = [];
+  dataPeminjaman["<?= $editData['id_anggota'] ?>"].push({
+    no_peminjaman: "<?= $editData['no_peminjaman'] ?>",
+    tgl_harus_kembali: "<?= $editData['tgl_harus_kembali'] ?>",
+  });
+<?php endif; ?>
+
 const dataBuku = <?= json_encode($detailBuku) ?>;
 const tarifPerHari = <?= $tarif_telat ?>;
 
@@ -379,12 +504,18 @@ function updateInfo() {
 
 function updateDenda() {
   const tglValue = document.getElementById('tglPengembalian').value;
+  console.log("Tanggal pengembalian (input):", tglValue);
+
   if (!tglValue) {
+    console.log("⛔ Tidak ada tanggal pengembalian. Denda tidak dihitung.");
     resetDenda();
     return;
   }
-  const tgl = new Date(tglValue);
-  const no = document.getElementById('peminjamanSelect').value;
+
+  let no = document.getElementById('peminjamanSelect').value;
+  if (!no && noPeminjamanEdit) {
+    no = noPeminjamanEdit;
+  }
 
   if (!no) {
     resetDenda();
@@ -399,20 +530,32 @@ function updateDenda() {
       break;
     }
   }
+
+  // Fallback jika tidak ketemu di dataPeminjaman
+  if (!kembali && document.getElementById('hidden_tgl_harus_kembali')) {
+    kembali = new Date(document.getElementById('hidden_tgl_harus_kembali').value);
+    console.log("🛠️ Fallback: pakai hidden_tgl_harus_kembali =", kembali.toISOString().split('T')[0]);
+  }
+
   if (!kembali) {
     resetDenda();
     return;
   }
 
+
+  const tgl = new Date(tglValue);
   let hari = Math.ceil((tgl - kembali) / (1000 * 60 * 60 * 24));
   if (hari < 0) hari = 0;
+  console.log("📆 Hari keterlambatan:", hari);
 
   // Hitung jumlah buku yang diceklist
   const bukuChecked = document.querySelectorAll('input[name="no_copy_buku[]"]:checked');
   const jumlahBuku = bukuChecked.length;
+  console.log("📚 Jumlah buku dicentang:", jumlahBuku);
 
   // Hitung denda keterlambatan
   const dendaTelat = hari * tarifPerHari * jumlahBuku;
+  console.log("💸 Denda telat:", dendaTelat);
 
   // Status pengembalian
   const statusDiv = document.getElementById('status_pengembalian');
@@ -430,9 +573,11 @@ function updateDenda() {
     tarifTambahan = parseInt(option.text.split('Rp')[1].replace(/\D/g, '')) || 0;
   }
   const totalTambahan = tarifTambahan * jumlahBuku;
+  console.log("➕ Denda tambahan:", totalTambahan);
 
   // Total denda
   const totalDenda = dendaTelat + totalTambahan;
+  console.log("💰 Total denda:", totalDenda);
 
   document.getElementById('denda_telat_display').value = dendaTelat.toLocaleString('id-ID', {style: 'currency', currency: 'IDR'});
   document.getElementById('total_denda_display').value = totalDenda.toLocaleString('id-ID', {style: 'currency', currency: 'IDR'});
@@ -452,6 +597,12 @@ function toggleSubmit() {
 }
 document.addEventListener('change', function(e) {
   if (e.target.name === 'no_copy_buku[]') toggleSubmit();
+});
+
+window.addEventListener('load', function () {
+  if (<?= $editMode ? 'true' : 'false' ?>) {
+    updateDenda();
+  }
 });
 
 </script>
