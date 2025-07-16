@@ -1,30 +1,66 @@
 <?php
 $tgl_mulai = $_POST['tgl_mulai'] ?? '';
 $tgl_selesai = $_POST['tgl_selesai'] ?? '';
-$hasil_pengembalian = null;
+$data = [];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_mulai) && !empty($tgl_selesai)) {
     $sql = "
-        SELECT 
-            pg.no_pengembalian,
-            pg.tgl_pengembalian,
-            a.id_anggota,
-            a.nm_anggota,
-            b.id_buku,
-            b.judul_buku,
-            GROUP_CONCAT(d.no_copy_buku SEPARATOR ', ') AS no_copy,
-            COUNT(d.no_copy_buku) AS jumlah
-        FROM pengembalian pg
-        LEFT JOIN peminjaman pj ON pg.no_peminjaman = pj.no_peminjaman
-        LEFT JOIN anggota a ON pj.id_anggota = a.id_anggota
-        LEFT JOIN dapat d ON pj.no_peminjaman = d.no_peminjaman
-        LEFT JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
+        SELECT
+            p.no_pengembalian, p.no_peminjaman, p.tgl_pengembalian,
+            pm.id_anggota, a.nm_anggota,
+            pm.tgl_harus_kembali,
+            b.id_buku, b.judul_buku,
+            bs.no_copy_buku,
+            IFNULL(pd.total_denda, 0) AS total_denda
+        FROM pengembalian p
+        LEFT JOIN peminjaman pm ON p.no_peminjaman = pm.no_peminjaman
+        LEFT JOIN anggota a ON pm.id_anggota = a.id_anggota
+        LEFT JOIN bisa bs ON p.no_pengembalian = bs.no_pengembalian
+        LEFT JOIN copy_buku cb ON bs.no_copy_buku = cb.no_copy_buku
         LEFT JOIN buku b ON cb.id_buku = b.id_buku
-        WHERE pg.tgl_pengembalian BETWEEN '$tgl_mulai' AND '$tgl_selesai'
-        GROUP BY pg.no_pengembalian, b.id_buku
-        ORDER BY pg.tgl_pengembalian ASC
+        LEFT JOIN (
+            SELECT no_pengembalian, SUM(subtotal) AS total_denda
+            FROM pengembalian_denda
+            GROUP BY no_pengembalian
+        ) pd ON p.no_pengembalian = pd.no_pengembalian
+        WHERE p.tgl_pengembalian BETWEEN '$tgl_mulai' AND '$tgl_selesai'
+        ORDER BY p.tgl_pengembalian ASC
     ";
-    $hasil_pengembalian = $conn->query($sql);
+
+    $result = $conn->query($sql);
+
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $no_pengembalian = $row['no_pengembalian'];
+
+            if (!isset($data[$no_pengembalian])) {
+                $data[$no_pengembalian] = [
+                    'no_pengembalian' => $no_pengembalian,
+                    'no_peminjaman' => $row['no_peminjaman'],
+                    'tgl_pengembalian' => $row['tgl_pengembalian'],
+                    'id_anggota' => $row['id_anggota'],
+                    'nm_anggota' => $row['nm_anggota'],
+                    'tgl_harus_kembali' => $row['tgl_harus_kembali'],
+                    'total_denda' => $row['total_denda'],
+                    'buku' => []
+                ];
+            }
+
+            $id_buku = $row['id_buku'];
+            if ($id_buku) {
+                if (!isset($data[$no_pengembalian]['buku'][$id_buku])) {
+                    $data[$no_pengembalian]['buku'][$id_buku] = [
+                        'judul' => $row['judul_buku'],
+                        'copy' => []
+                    ];
+                }
+
+                if ($row['no_copy_buku']) {
+                    $data[$no_pengembalian]['buku'][$id_buku]['copy'][] = $row['no_copy_buku'];
+                }
+            }
+        }
+    }
 }
 ?>
 
@@ -60,50 +96,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_mulai) && !empty($tgl_se
         </div>
     </form>
 
-    <?php if ($hasil_pengembalian !== null): ?>
-        <div class="card-glass mb-4">
-            <h5 class="text-center text-success">Menampilkan pengembalian dari <strong><?= htmlspecialchars($tgl_mulai) ?></strong> sampai <strong><?= htmlspecialchars($tgl_selesai) ?></strong></h5>
-        </div>
+<?php if (!empty($data)): ?>
+    <div class="card-glass mb-4">
+        <h5 class="text-center text-success">
+            Menampilkan pengembalian dari <strong><?= htmlspecialchars($tgl_mulai) ?></strong> sampai <strong><?= htmlspecialchars($tgl_selesai) ?></strong>
+        </h5>
+    </div>
 
-        <table class="table table-bordered table-hover">
-            <thead>
-                <tr>
-                    <th>No</th>
-                    <th>No Pengembalian</th>
-                    <th>Tanggal Kembali</th>
-                    <th>ID Anggota</th>
-                    <th>Nama Anggota</th>
-                    <th>ID Buku</th>
-                    <th>Judul Buku</th>
-                    <th>No Copy Buku</th>
-                    <th>Jumlah</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $no = 1;
-                if ($hasil_pengembalian->num_rows > 0) {
-                    while ($row = $hasil_pengembalian->fetch_assoc()) {
-                        echo "<tr>
-                                <td>{$no}</td>
-                                <td>{$row['no_pengembalian']}</td>
-                                <td>" . date('d-m-Y', strtotime($row['tgl_pengembalian'])) . "</td>
-                                <td>{$row['id_anggota']}</td>
-                                <td>{$row['nm_anggota']}</td>
-                                <td>{$row['id_buku']}</td>
-                                <td>{$row['judul_buku']}</td>
-                                <td>{$row['no_copy']}</td>
-                                <td>{$row['jumlah']}</td>
-                              </tr>";
-                        $no++;
-                    }
-                } else {
-                    echo '<tr><td colspan="9" class="text-muted text-center">Tidak ada data pengembalian dalam rentang tanggal tersebut.</td></tr>';
-                }
-                ?>
-            </tbody>
-        </table>
-    <?php endif; ?>
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>No</th>
+                <th>No Pengembalian</th>
+                <th>Tanggal Kembali</th>
+                <th>ID Anggota</th>
+                <th>Nama Anggota</th>
+                <th>ID Buku</th>
+                <th>Judul Buku</th>
+                <th>No Copy Buku</th>
+                <th>Jumlah</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php $no = 1; ?>
+            <?php foreach ($data as $item): ?>
+                <?php foreach ($item['buku'] as $id_buku => $b): ?>
+                    <tr>
+                        <td><?= $no++ ?></td>
+                        <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
+                        <td><?= date('d-m-Y', strtotime($item['tgl_pengembalian'])) ?></td>
+                        <td><?= htmlspecialchars($item['id_anggota']) ?></td>
+                        <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
+                        <td><?= htmlspecialchars($id_buku) ?></td>
+                        <td><?= htmlspecialchars($b['judul']) ?></td>
+                        <td>
+                            <?= implode(', ', array_map('htmlspecialchars', $b['copy'])) ?>
+                        </td>
+                        <td><?= count($b['copy']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+<?php endif; ?>
+
 </div>
 
 <script>
