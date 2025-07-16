@@ -12,9 +12,14 @@ if (!$tgl_dari || !$tgl_sampai) {
 }
 
 $query = "
-    SELECT k.id_kunjungan, k.tgl_kunjungan, a.nm_anggota, k.tujuan
+    SELECT 
+        k.id_kunjungan, 
+        k.tgl_kunjungan, 
+        k.id_anggota,
+        COALESCE(a.nm_anggota, k.nama_pengunjung) AS nama_pengunjung,
+        k.tujuan
     FROM kunjungan k
-    JOIN anggota a ON k.id_anggota = a.id_anggota
+    LEFT JOIN anggota a ON k.id_anggota = a.id_anggota
     WHERE k.tgl_kunjungan BETWEEN '$tgl_dari' AND '$tgl_sampai'
     ORDER BY k.tgl_kunjungan ASC
 ";
@@ -38,6 +43,7 @@ $result = $conn->query($query);
             font-size: 14px;
             margin: 0;
             padding: 0;
+            background-color: #f0f6ff;
         }
 
         .container {
@@ -47,18 +53,22 @@ $result = $conn->query($query);
         h2 {
             text-align: center;
             margin-bottom: 0;
+            color: #0d6efd;
         }
 
         p {
             text-align: center;
             margin-top: 5px;
             margin-bottom: 20px;
+            color: #198754;
+            font-weight: bold;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            background-color: white;
         }
 
         th, td {
@@ -68,7 +78,12 @@ $result = $conn->query($query);
         }
 
         th {
-            background-color: #eee;
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+
+        .badge {
+            font-size: 13px;
         }
 
         @media print {
@@ -94,6 +109,7 @@ $result = $conn->query($query);
                 <th>ID Kunjungan</th>
                 <th>Tanggal</th>
                 <th>Nama Pengunjung</th>
+                <th>Status</th>
                 <th>Tujuan</th>
             </tr>
         </thead>
@@ -102,22 +118,26 @@ $result = $conn->query($query);
             <?php $no = 1; while ($row = $result->fetch_assoc()): ?>
                 <tr>
                     <td><?= $no++ ?></td>
-                    <td><?= $row['id_kunjungan'] ?></td>
-                    <td><?= date('d-m-Y', strtotime($row['tgl_kunjungan'])) ?></td>
-                    <td><?= $row['nm_anggota'] ?></td>
-                    <td><?= $row['tujuan'] ?></td>
+                    <td><?= htmlspecialchars($row['id_kunjungan']) ?></td>
+                    <td><?= date('d M Y', strtotime($row['tgl_kunjungan'])) ?></td>
+                    <td><?= htmlspecialchars($row['nama_pengunjung']) ?></td>
+                    <td>
+                        <?= $row['id_anggota'] ? '<span class="badge bg-primary">Anggota</span>' : '<span class="badge bg-secondary">Non-Anggota</span>' ?>
+                    </td>
+                    <td><?= htmlspecialchars($row['tujuan']) ?></td>
                 </tr>
             <?php endwhile; ?>
         <?php else: ?>
             <tr>
-                <td colspan="5">Tidak ada data kunjungan dalam periode ini.</td>
+                <td colspan="6">Tidak ada data kunjungan dalam periode ini.</td>
             </tr>
         <?php endif; ?>
         </tbody>
     </table>
+
     <?php if ($result && $result->num_rows > 0): ?>
         <div style="text-align:center; margin-top:20px;">
-            <button id="btn-cetak" onclick="window.print()" class="btn btn-danger">Cetak</button>
+            <button id="btn-cetak" onclick="window.print()" class="btn btn-success">Cetak</button>
         </div>
     <?php endif; ?>
 </div>

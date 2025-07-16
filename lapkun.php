@@ -6,10 +6,14 @@ $tgl_sampai = $_POST['tgl_sampai'] ?? '';
 $hasil_kunjungan = null;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_dari) && !empty($tgl_sampai)) {
-    $sql = "SELECT k.*, a.nm_anggota FROM kunjungan k
-            JOIN anggota a ON k.id_anggota = a.id_anggota
-            WHERE tgl_kunjungan BETWEEN '$tgl_dari' AND '$tgl_sampai'
-            ORDER BY tgl_kunjungan ASC";
+    $sql = "SELECT 
+                k.*, 
+                k.id_anggota,
+                COALESCE(a.nm_anggota, k.nama_pengunjung) AS nama_pengunjung
+            FROM kunjungan k
+            LEFT JOIN anggota a ON k.id_anggota = a.id_anggota
+            WHERE k.tgl_kunjungan BETWEEN '$tgl_dari' AND '$tgl_sampai'
+            ORDER BY k.tgl_kunjungan ASC";
     $hasil_kunjungan = $conn->query($sql);
 }
 ?>
@@ -53,13 +57,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_dari) && !empty($tgl_sam
             <h5 class="text-center text-success">Menampilkan kunjungan dari <strong><?= htmlspecialchars($tgl_dari) ?></strong> sampai <strong><?= htmlspecialchars($tgl_sampai) ?></strong></h5>
         </div>
 
-        <table class="table table-bordered table-hover">
+        <table class="table table-bordered table-hover text-center align-middle">
             <thead>
                 <tr>
                     <th>No</th>
                     <th>ID Kunjungan</th>
                     <th>Tanggal</th>
                     <th>Nama Pengunjung</th>
+                    <th>Status</th>
                     <th>Tujuan</th>
                 </tr>
             </thead>
@@ -68,17 +73,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_dari) && !empty($tgl_sam
                 $no = 1;
                 if ($hasil_kunjungan->num_rows > 0) {
                     while ($row = $hasil_kunjungan->fetch_assoc()) {
+                        $status = $row['id_anggota'] ? '<span class="badge bg-primary">Anggota</span>' : '<span class="badge bg-secondary">Non-Anggota</span>';
                         echo "<tr>
-                                <td class='text-center'>{$no}</td>
+                                <td>{$no}</td>
                                 <td class='fw-bold'>{$row['id_kunjungan']}</td>
                                 <td class='fw-bold'>" . date('d M Y', strtotime($row['tgl_kunjungan'])) . "</td>
-                                <td class='fw-bold'>{$row['nm_anggota']}</td>
+                                <td class='fw-bold'>{$row['nama_pengunjung']}</td>
+                                <td>{$status}</td>
                                 <td class='fw-bold'>{$row['tujuan']}</td>
                               </tr>";
                         $no++;
                     }
                 } else {
-                    echo '<tr><td colspan="5" class="text-muted text-center">Tidak ada data kunjungan dalam rentang tanggal tersebut.</td></tr>';
+                    echo '<tr><td colspan="6" class="text-muted text-center">Tidak ada data kunjungan dalam rentang tanggal tersebut.</td></tr>';
                 }
                 ?>
             </tbody>
