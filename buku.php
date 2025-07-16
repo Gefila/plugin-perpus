@@ -16,6 +16,19 @@ $sql = "SELECT buku.*, kategori.nm_kategori
         LEFT JOIN kategori ON buku.id_kategori = kategori.id_kategori 
         WHERE 1=1";
 
+        $sql = "SELECT 
+            buku.*, 
+            kategori.nm_kategori,
+            (
+                SELECT COUNT(*) 
+                FROM copy_buku 
+                WHERE copy_buku.id_buku = buku.id_buku 
+                  AND copy_buku.status_buku = 'tersedia'
+            ) AS jml_tersedia
+        FROM buku 
+        LEFT JOIN kategori ON buku.id_kategori = kategori.id_kategori 
+        WHERE 1=1";
+
 // Tambahkan kondisi pencarian jika ada keyword
 if (!empty($searchKeyword)) {
     $sql .= " AND (judul_buku LIKE '%$searchKeyword%' 
@@ -238,7 +251,11 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
                                     </div>
                                     <div class="book-meta-item">
                                         <span class="stock-indicator <?= $stockClass ?>"></span>
-                                        <?= $row['jml_buku'] ?> tersedia
+                                        <?= $row['jml_buku'] ?> Jumlah Buku
+                                    </div>
+                                     <div class="book-meta-item">
+                                        <span class="stock-indicator <?= $stockClass ?>"></span>
+                                        <?= $row['jml_tersedia'] ?> tersedia
                                     </div>
                                     <div class="book-meta-item">
                                         <i class="bi bi-building"></i>
