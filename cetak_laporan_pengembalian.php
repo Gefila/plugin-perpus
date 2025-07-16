@@ -167,7 +167,14 @@ if ($result) {
                     <td><?= htmlspecialchars($item['id_anggota']) ?></td>
                     <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
                     <td class="text-left"><?= $judulList ?></td>
-                    <td class="text-left"><?= $copyList ?></td>
+                                            <td>
+                            <?php foreach ($item['buku'] as $id_buku => $b): ?>
+                                <strong><?= htmlspecialchars($id_buku) ?>:</strong><br>
+                                <?php foreach ($b['copy'] as $copy): ?>
+                                    <?= htmlspecialchars($copy) ?><br>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </td>
                     <td><?= $jumlahCopy ?></td>
                 </tr>
             <?php endforeach; ?>
