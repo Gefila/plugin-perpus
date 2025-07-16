@@ -7,6 +7,114 @@ function generateNoPengembalian($conn) {
     return "PG" . $n;
 }
 
+// Cek mode edit
+$editMode = false;
+$editData = [];
+$existingCopies = [];
+$existingDendaTambahan = null;
+if (isset($_GET['edit'])) {
+    $editMode = true;
+    $noPengembalian = $conn->real_escape_string($_GET['edit']);
+
+    // Ambil data pengembalian utama & peminjaman terkait
+    $stmt = $conn->prepare("SELECT pg.*, pm.tgl_harus_kembali, pm.id_anggota FROM pengembalian pg JOIN peminjaman pm USING(no_peminjaman) WHERE pg.no_pengembalian = ?");
+    $stmt->bind_param("s", $noPengembalian);
+    $stmt->execute();
+    $editData = $stmt->get_result()->fetch_assoc() ?: [];
+    $stmt->close();
+
+    // Ambil daftar copy yang sudah dikembalikan
+    $stmt2 = $conn->prepare("SELECT no_copy_buku FROM bisa WHERE no_pengembalian = ?");
+    $stmt2->bind_param("s", $noPengembalian);
+    $stmt2->execute();
+    $res2 = $stmt2->get_result();
+    while ($r = $res2->fetch_assoc()) $existingCopies[] = $r['no_copy_buku'];
+    $stmt2->close();
+
+    // Ambil id denda tambahan (bukan D1)
+    $stmt3 = $conn->prepare("SELECT id_denda FROM pengembalian_denda WHERE no_pengembalian = ? AND id_denda != 'D1' LIMIT 1");
+    $stmt3->bind_param("s", $noPengembalian);
+    $stmt3->execute();
+    $row3 = $stmt3->get_result()->fetch_assoc();
+    $existingDendaTambahan = $row3['id_denda'] ?? null;
+    $stmt3->close();
+}
+
+// Proses form submit
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
+    if (isset($_POST['edit_mode'])) {
+        // MODE EDIT
+        $no_pengembalian = $_POST['no_pengembalian'];
+        $tgl_pengembalian = $_POST['tgl_pengembalian'] ?? '';
+        $id_denda_tambahan = $_POST['id_denda_tambahan'] ?: null;
+
+        if (!$tgl_pengembalian) {
+            echo "<script>alert('Tanggal pengembalian harus diisi!');history.back();</script>";
+            exit;
+        }
+
+        $conn->begin_transaction();
+        try {
+            // Update tanggal
+            $upd = $conn->prepare("UPDATE pengembalian SET tgl_pengembalian = ? WHERE no_pengembalian = ?");
+            $upd->bind_param("ss", $tgl_pengembalian, $no_pengembalian);
+            $upd->execute();
+            $upd->close();
+
+            // Hapus denda lama
+            $del = $conn->prepare("DELETE FROM pengembalian_denda WHERE no_pengembalian = ?");
+            $del->bind_param("s", $no_pengembalian);
+            $del->execute();
+            $del->close();
+
+            // Hitung ulang denda
+            $hari_telat = 0;
+            $tgl_harus = new DateTime($editData['tgl_harus_kembali']);
+            $tgl_kembali = new DateTime($tgl_pengembalian);
+            if ($tgl_kembali > $tgl_harus) {
+                $hari_telat = (int)$tgl_harus->diff($tgl_kembali)->days;
+            }
+            $tarif = (int)($conn->query("SELECT tarif_denda FROM denda WHERE id_denda='D1'")->fetch_assoc()['tarif_denda'] ?? 0);
+            if ($hari_telat > 0 && $tarif > 0) {
+                $jumlah_copy = count($existingCopies);
+                $subtotal = $tarif * $hari_telat * $jumlah_copy;
+                $ins1 = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, 'D1', ?, ?)");
+                $ins1->bind_param("sii", $no_pengembalian, $jumlah_copy, $subtotal);
+                $ins1->execute();
+                $ins1->close();
+            }
+
+            // Denda tambahan
+            // Denda tambahan
+            if ($id_denda_tambahan) {
+                $stmt_tarif2 = $conn->prepare("SELECT tarif_denda FROM denda WHERE id_denda=?");
+                $stmt_tarif2->bind_param("s", $id_denda_tambahan);
+                $stmt_tarif2->execute();
+                $result2 = $stmt_tarif2->get_result();
+
+                if ($result2 && $row2 = $result2->fetch_assoc()) {
+                    $tarif2 = (int)$row2['tarif_denda'];
+                    $jumlah_copy = count($existingCopies);
+                    $subtotal2 = $tarif2 * $jumlah_copy;
+
+                    $ins2 = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, ?, ?, ?)");
+                    $ins2->bind_param("ssii", $no_pengembalian, $id_denda_tambahan, $jumlah_copy, $subtotal2);
+                    $ins2->execute();
+                    $ins2->close();
+                }
+
+                $stmt_tarif2->close();
+            }
+
+            $conn->commit();
+            echo "<script>alert('Pengembalian berhasil diperbarui!');location='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
+            exit;
+        } catch (Exception $ex) {
+            $conn->rollback();
+            echo "<script>alert('Gagal update: " . addslashes($ex->getMessage()) . "');history.back();</script>";
+            exit;
+        }
+    } else {
 // Proses form submit
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
     $no_pengembalian = generateNoPengembalian($conn);
@@ -152,6 +260,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
         exit;
     }
 }
+    }
+  }
 
 // === Bagian tampilan data ===
 $anggota = $conn->query("SELECT * FROM anggota ORDER BY nm_anggota");
@@ -467,281 +577,310 @@ while ($row = $detail_buku->fetch_assoc()) {
 </head>
 
 <body class="p-3">
-
 <div class="perpus-form-container">
-    <div class="perpus-form-header">
-        <h2>
-            <i class="fas fa-book"></i>
-            Tambah Pengembalian Buku
-        </h2>
-    </div>
-    
-    <div class="perpus-form-body">
-        <form method="POST" id="formPengembalian">
-            <!-- Anggota -->
-            <div class="perpus-input-group">
-                <label for="anggotaSelect">Anggota</label>
-                <div class="perpus-select-wrapper">
-                    <select name="id_anggota" id="anggotaSelect" class="form-select" onchange="filterPeminjaman()" required>
-                        <option value="">-- Pilih Anggota --</option>
-                        <?php foreach ($anggotaData as $a): ?>
-                            <option value="<?= htmlspecialchars($a['id_anggota']) ?>">
-                                <?= htmlspecialchars($a['id_anggota'] . " - " . $a['nm_anggota']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
+  <div class="perpus-form-header">
+    <h2>
+      <i class="fas fa-book"></i>
+      <?php echo $editMode ? 'Edit Pengembalian Buku' : 'Tambah Pengembalian Buku'; ?>
+    </h2>
+  </div>
+  <div class="perpus-form-body">
+    <form method="POST" id="formPengembalian">
+      <?php if ($editMode): ?>
+        <input type="hidden" name="edit_mode" value="1">
+        <input type="hidden" name="no_pengembalian" value="<?php echo esc_attr($editData['no_pengembalian']); ?>">
+      <?php endif; ?>
 
-            <!-- Nomor Peminjaman -->
-            <div class="perpus-input-group">
-                <label for="peminjamanSelect">Nomor Peminjaman</label>
-                <div class="perpus-select-wrapper">
-                    <select name="no_peminjaman" id="peminjamanSelect" class="form-select" onchange="updateInfo()" required>
-                        <option value="">-- Pilih Nomor Peminjaman --</option>
-                    </select>
-                </div>
-            </div>
+      <!-- Anggota -->
+      <div class="perpus-input-group">
+        <label for="anggotaSelect">Anggota</label>
+        <div class="perpus-select-wrapper">
+          <select name="id_anggota" id="anggotaSelect" class="form-select" onchange="filterPeminjaman()" required <?php echo $editMode ? 'disabled' : ''; ?>>
+            <option value="">-- Pilih Anggota --</option>
+            <?php foreach ($anggotaData as $a): ?>
+              <option value="<?= esc_attr($a['id_anggota']) ?>"
+                <?= $editMode && $a['id_anggota'] == $editData['id_anggota'] ? 'selected' : '' ?>>
+                <?= esc_html($a['id_anggota'] . " - " . $a['nm_anggota']) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
 
-            <div class="row">
-                <!-- Tanggal Harus Kembali -->
-                <div class="col-md-6">
-                    <div class="perpus-input-group">
-                        <label for="tgl_harus_kembali_display">Tanggal Harus Kembali</label>
-                        <div class="perpus-input-wrapper">
-                            <span class="perpus-input-icon">
-                                <i class="fas fa-calendar-day"></i>
-                            </span>
-                            <input type="text" id="tgl_harus_kembali_display" class="perpus-input-field readonly-blue" readonly />
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Tanggal Pengembalian -->
-                <div class="col-md-6">
-                    <div class="perpus-input-group">
-                        <label for="tglPengembalian">Tanggal Pengembalian</label>
-                        <div class="perpus-input-wrapper">
-                            <span class="perpus-input-icon">
-                                <i class="fas fa-calendar-check"></i>
-                            </span>
-                            <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="perpus-input-field" onchange="updateDenda()" required />
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <!-- Nomor Peminjaman -->
+      <div class="perpus-input-group">
+        <label for="peminjamanSelect">Nomor Peminjaman</label>
+        <div class="perpus-select-wrapper">
+          <select name="no_peminjaman" id="peminjamanSelect" class="form-select" onchange="updateInfo()" required <?php echo $editMode ? 'disabled' : ''; ?>>
+            <option value="">-- Pilih Nomor Peminjaman --</option>
+            <?php if ($editMode): ?>
+              <option value="<?= esc_attr($editData['no_peminjaman']) ?>" selected><?= esc_html($editData['no_peminjaman']) ?></option>
+            <?php endif; ?>
+          </select>
+        </div>
+      </div>
 
-            <!-- Status Pengembalian -->
-            <div class="perpus-input-group">
-                <label>Status Pengembalian</label>
-                <div id="status_pengembalian" class="status-display"></div>
+      <div class="row">
+        <!-- Tanggal Harus Kembali -->
+        <div class="col-md-6">
+          <div class="perpus-input-group">
+            <label for="tgl_harus_kembali_display">Tanggal Harus Kembali</label>
+            <div class="perpus-input-wrapper">
+              <span class="perpus-input-icon"><i class="fas fa-calendar-day"></i></span>
+              <input type="text" id="tgl_harus_kembali_display" class="perpus-input-field readonly-blue" readonly value="<?= $editMode ? esc_attr($editData['tgl_harus_kembali']) : '' ?>" />
             </div>
+          </div>
+        </div>
 
-            <!-- Denda Telat -->
-            <div class="perpus-input-group">
-                <label for="denda_telat_display">Denda Telat (per hari × per buku)</label>
-                <div class="perpus-input-wrapper">
-                    <span class="perpus-input-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </span>
-                    <input type="text" id="denda_telat_display" class="perpus-input-field readonly-blue" readonly />
-                </div>
+        <!-- Tanggal Pengembalian -->
+        <div class="col-md-6">
+          <div class="perpus-input-group">
+            <label for="tglPengembalian">Tanggal Pengembalian</label>
+            <div class="perpus-input-wrapper">
+              <span class="perpus-input-icon"><i class="fas fa-calendar-check"></i></span>
+              <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="perpus-input-field" value="<?= $editMode ? esc_attr($editData['tgl_pengembalian']) : '' ?>" required />
             </div>
+          </div>
+        </div>
+      </div>
 
-            <!-- Denda Tambahan -->
-            <div class="perpus-input-group">
-                <label for="id_denda_tambahan">Denda Tambahan (per buku)</label>
-                <div class="perpus-select-wrapper">
-                    <select name="id_denda_tambahan" id="id_denda_tambahan" class="form-select" onchange="updateDenda()">
-                        <option value="">-- None --</option>
-                        <?php
-                            $denda_opsional->data_seek(0);
-                            while ($d = $denda_opsional->fetch_assoc()):
-                        ?>
-                            <option value="<?= htmlspecialchars($d['id_denda']) ?>">
-                                <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
-                            </option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-            </div>
+      <!-- Status -->
+      <div class="perpus-input-group">
+        <label>Status Pengembalian</label>
+        <div id="status_pengembalian" class="status-display"></div>
+      </div>
 
-            <!-- Total Denda -->
-            <div class="perpus-input-group">
-                <label for="total_denda_display">Total Denda</label>
-                <div class="perpus-input-wrapper">
-                    <span class="perpus-input-icon">
-                        <i class="fas fa-money-bill-wave"></i>
-                    </span>
-                    <input type="text" id="total_denda_display" class="perpus-input-field readonly-blue fw-bold" readonly />
-                    <input type="hidden" name="tarif_denda" id="tarif_denda" />
-                </div>
-            </div>
+      <!-- Denda Telat -->
+      <div class="perpus-input-group">
+        <label for="denda_telat_display">Denda Telat</label>
+        <div class="perpus-input-wrapper">
+          <span class="perpus-input-icon"><i class="fas fa-exclamation-triangle"></i></span>
+          <input type="text" id="denda_telat_display" class="perpus-input-field readonly-blue" readonly />
+        </div>
+      </div>
 
-            <!-- Buku Dikembalikan -->
-            <div class="perpus-input-group">
-                <label>Buku Dikembalikan</label>
-                <div id="tabelBuku" class="perpus-list-group"></div>
-            </div>
+      <!-- Denda Tambahan -->
+      <div class="perpus-input-group">
+        <label for="id_denda_tambahan">Denda Tambahan</label>
+        <div class="perpus-select-wrapper">
+          <select name="id_denda_tambahan" id="id_denda_tambahan" class="form-select">
+            <option value="">-- None --</option>
+            <?php
+              $denda_opsional->data_seek(0);
+              while ($d = $denda_opsional->fetch_assoc()):
+            ?>
+              <option value="<?= htmlspecialchars($d['id_denda']) ?>"
+                <?= $editMode && isset($editData['id_denda_tambahan']) && $editData['id_denda_tambahan'] == $d['id_denda'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
+              </option>
+            <?php endwhile; ?>
+          </select>
+        </div>
+      </div>
 
-            <!-- Tombol Simpan -->
-            <div class="perpus-btn-group">
-                <a href="admin.php?page=perpus_utama&panggil=pengembalian.php" class="perpus-btn perpus-btn-secondary">
-                    <i class="fas fa-times"></i> Batal
-                </a>
-                <button name="simpan" class="perpus-btn perpus-btn-primary">
-                    <i class="fas fa-save"></i> Simpan
-                </button>
-            </div>
-        </form>
-    </div>
+      <!-- Total Denda -->
+      <div class="perpus-input-group">
+        <label for="total_denda_display">Total Denda</label>
+        <div class="perpus-input-wrapper">
+          <span class="perpus-input-icon"><i class="fas fa-money-bill-wave"></i></span>
+          <input type="text" id="total_denda_display" class="perpus-input-field readonly-blue fw-bold" readonly />
+          <input type="hidden" name="tarif_denda" id="tarif_denda" />
+        </div>
+      </div>
+
+      <!-- Daftar Buku (readonly jika editMode) -->
+      <div class="perpus-input-group">
+        <label>Buku Dikembalikan</label>
+        <div id="tabelBuku" class="perpus-list-group">
+          <?php if ($editMode && !empty($existingCopies)): ?>
+            <ul class="list-group">
+              <?php foreach ($existingCopies as $copy): ?>
+                <li class="list-group-item"><?= esc_html($copy) ?></li>
+              <?php endforeach; ?>
+            </ul>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Tombol -->
+      <div class="perpus-btn-group">
+        <a href="admin.php?page=perpus_utama&panggil=pengembalian.php" class="perpus-btn perpus-btn-secondary">
+          <i class="fas fa-times"></i> Batal
+        </a>
+        <button name="simpan" class="perpus-btn perpus-btn-primary">
+          <i class="fas fa-save"></i> Simpan
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<script>
-const dataPeminjaman = <?= json_encode($peminjamanData) ?>;
-const dataBuku = <?= json_encode($detailBuku) ?>;
-const tarifPerHari = <?= $tarif_telat ?>;
 
-function filterPeminjaman() {
-  const anggota = document.getElementById('anggotaSelect').value;
-  const select = document.getElementById('peminjamanSelect');
-  select.innerHTML = '<option value="">-- Pilih Nomor Peminjaman --</option>';
-  if (anggota in dataPeminjaman) {
-    dataPeminjaman[anggota].forEach(p => {
-      select.innerHTML += `<option value="${p.no_peminjaman}">${p.no_peminjaman}</option>`;
-    });
+<script>
+const peminjamanData = <?= json_encode($peminjamanData) ?>;
+const detailBuku = <?= json_encode($detailBuku) ?>;
+
+const editMode = <?= $editMode ? 'true' : 'false' ?>;
+const existingCopies = <?= json_encode($existingCopies) ?>;
+const tglHarus = <?= json_encode($editMode && !empty($editData['tgl_harus_kembali']) ? $editData['tgl_harus_kembali'] : null) ?>;
+let tglHarusDate = tglHarus ? new Date(tglHarus) : null;  // diganti dari const ke let
+const tarifPerHari = <?= $tarif_telat ?> || 0;
+
+function updateDenda() {
+  const tglVal = document.getElementById('tglPengembalian').value;
+  if (!tglVal) {
+    clearDendaFields();
+    return;
   }
-  document.getElementById('tgl_harus_kembali_display').value = '';
-  document.getElementById('tabelBuku').innerHTML = '';
+
+  const tgl = new Date(tglVal);
+
+  // Tambahan logika jika tglHarusDate null (mode tambah)
+  if (!tglHarusDate || isNaN(tglHarusDate)) {
+    const tglHarusField = document.getElementById('tgl_harus_kembali_display');
+    if (tglHarusField && tglHarusField.value) {
+      const tglHarusBaru = new Date(tglHarusField.value);
+      if (!isNaN(tglHarusBaru)) {
+        tglHarusDate = tglHarusBaru;
+      }
+    }
+  }
+
+  let hari = 0;
+  if (tglHarusDate instanceof Date && !isNaN(tglHarusDate)) {
+    hari = Math.ceil((tgl - tglHarusDate) / (1000 * 60 * 60 * 24));
+  }
+  if (hari < 0) hari = 0;
+
+  let jumlahBuku = 0;
+  if (editMode) {
+    jumlahBuku = existingCopies.length;
+  } else {
+    jumlahBuku = document.querySelectorAll('input[name="no_copy_buku[]"]:checked').length;
+  }
+
+  const dendaTelat = hari * tarifPerHari * jumlahBuku;
+
+  let tarifTambahan = 0;
+  const tambahanSelect = document.getElementById('id_denda_tambahan');
+  if (tambahanSelect && tambahanSelect.value) {
+    const selectedText = tambahanSelect.selectedOptions[0].text || '';
+    const match = selectedText.match(/Rp([\d\.]+)/);
+    if (match) {
+      tarifTambahan = parseInt(match[1].replace(/\./g, ''), 10) || 0;
+    }
+  }
+  const totalTambahan = tarifTambahan * jumlahBuku;
+  const total = dendaTelat + totalTambahan;
+
+  const statusElem = document.getElementById('status_pengembalian');
+  if (hari > 0) {
+    statusElem.innerHTML = `<i class="fas fa-exclamation-circle text-danger"></i> Terlambat ${hari} hari`;
+    statusElem.classList.add('status-telat');
+    statusElem.classList.remove('status-tepat');
+  } else {
+    statusElem.innerHTML = `<i class="fas fa-check-circle text-success"></i> Tepat Waktu`;
+    statusElem.classList.add('status-tepat');
+    statusElem.classList.remove('status-telat');
+  }
+
+  const dendaTelatField = document.getElementById('denda_telat_display');
+  const totalDendaField = document.getElementById('total_denda_display');
+  const tarifDendaHidden = document.getElementById('tarif_denda');
+
+  if (dendaTelatField) dendaTelatField.value = dendaTelat.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+  if (totalDendaField) totalDendaField.value = total.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+  if (tarifDendaHidden) tarifDendaHidden.value = total;
+
+  // Debug
+  console.log('tglPengembalian:', tgl);
+  console.log('tglHarusDate:', tglHarusDate);
+  console.log('hari telat:', hari);
+  console.log('tarif/hari:', tarifPerHari);
+  console.log('jumlah buku:', jumlahBuku);
+  console.log('dendaTelat:', dendaTelat);
+}
+
+function clearDendaFields() {
   document.getElementById('status_pengembalian').innerHTML = '';
   document.getElementById('denda_telat_display').value = '';
   document.getElementById('total_denda_display').value = '';
   document.getElementById('tarif_denda').value = '';
-  document.getElementById('id_denda_tambahan').value = '';
-  document.getElementById('tglPengembalian').value = '';
+}
+
+function filterPeminjaman() {
+  const anggotaSelect = document.getElementById('anggotaSelect');
+  const peminjamanSelect = document.getElementById('peminjamanSelect');
+  const selectedId = anggotaSelect.value;
+
+  peminjamanSelect.innerHTML = '<option value="">-- Pilih Nomor Peminjaman --</option>';
+
+  if (selectedId && peminjamanData[selectedId]) {
+    peminjamanData[selectedId].forEach(p => {
+      const option = document.createElement('option');
+      option.value = p.no_peminjaman;
+      option.textContent = p.no_peminjaman;
+      peminjamanSelect.appendChild(option);
+    });
+  }
+
+  document.getElementById('tgl_harus_kembali_display').value = '';
+  document.getElementById('tabelBuku').innerHTML = '';
+  clearDendaFields();
 }
 
 function updateInfo() {
-  const no = document.getElementById('peminjamanSelect').value;
-  const buku = dataBuku[no] || [];
+  const peminjamanSelect = document.getElementById('peminjamanSelect');
+  const anggotaSelect = document.getElementById('anggotaSelect');
+  const selectedNo = peminjamanSelect.value;
+  const anggotaId = anggotaSelect.value;
 
-  let html = '<ul class="perpus-list-group">';
-  buku.forEach(b => {
-    html += `<li class="perpus-list-group-item">
-      <label><input type="checkbox" name="no_copy_buku[]" value="${b.no_copy_buku}" onchange="updateDenda()"> 
-      ${b.id_buku} - ${b.judul_buku} (Copy: ${b.no_copy_buku})</label>
-    </li>`;
-  });
-  html += '</ul>';
-  document.getElementById('tabelBuku').innerHTML = html;
+  const tglHarusField = document.getElementById('tgl_harus_kembali_display');
+  const daftarBukuDiv = document.getElementById('tabelBuku');
 
-  // Tampilkan tanggal harus kembali
-  let tglKembali = '';
-  for (const anggota in dataPeminjaman) {
-    const data = dataPeminjaman[anggota].find(p => p.no_peminjaman === no);
+  tglHarusField.value = '';
+  daftarBukuDiv.innerHTML = '';
+
+  if (selectedNo && anggotaId && peminjamanData[anggotaId]) {
+    const data = peminjamanData[anggotaId].find(p => p.no_peminjaman === selectedNo);
     if (data) {
-      tglKembali = data.tgl_harus_kembali;
-      break;
+      tglHarusField.value = data.tgl_harus_kembali;
     }
   }
 
-  if (tglKembali) {
-    const date = new Date(tglKembali);
-    const formatted = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    document.getElementById('tgl_harus_kembali_display').value = formatted;
-  } else {
-    document.getElementById('tgl_harus_kembali_display').value = '';
+  if (selectedNo && detailBuku[selectedNo]) {
+    detailBuku[selectedNo].forEach(buku => {
+      const div = document.createElement('div');
+      div.className = 'perpus-list-group-item';
+      div.innerHTML = `
+        <label>
+          <input type="checkbox" name="no_copy_buku[]" value="${buku.no_copy_buku}" checked />
+          ${buku.no_copy_buku} - ${buku.judul_buku}
+        </label>
+      `;
+      daftarBukuDiv.appendChild(div);
+    });
   }
 
   updateDenda();
 }
 
-function updateDenda() {
-  const tglValue = document.getElementById('tglPengembalian').value;
-  if (!tglValue) {
-    resetDenda();
-    return;
+document.addEventListener('DOMContentLoaded', () => {
+  const anggotaSelect = document.getElementById('anggotaSelect');
+  const peminjamanSelect = document.getElementById('peminjamanSelect');
+  const tanggalPengembalian = document.getElementById('tglPengembalian');
+  const dendaTambahanSelect = document.getElementById('id_denda_tambahan');
+
+  if (anggotaSelect) anggotaSelect.addEventListener('change', filterPeminjaman);
+  if (peminjamanSelect) peminjamanSelect.addEventListener('change', updateInfo);
+  if (tanggalPengembalian) tanggalPengembalian.addEventListener('change', updateDenda);
+  if (dendaTambahanSelect) dendaTambahanSelect.addEventListener('change', updateDenda);
+
+  if (editMode) {
+    updateDenda();
   }
-  const tgl = new Date(tglValue);
-  const no = document.getElementById('peminjamanSelect').value;
-
-  if (!no) {
-    resetDenda();
-    return;
-  }
-
-  let kembali = null;
-  for (const anggota in dataPeminjaman) {
-    const data = dataPeminjaman[anggota].find(p => p.no_peminjaman === no);
-    if (data) {
-      kembali = new Date(data.tgl_harus_kembali);
-      break;
-    }
-  }
-  if (!kembali) {
-    resetDenda();
-    return;
-  }
-
-  let hari = Math.ceil((tgl - kembali) / (1000 * 60 * 60 * 24));
-  if (hari < 0) hari = 0;
-
-  // Hitung jumlah buku yang diceklist
-  const bukuChecked = document.querySelectorAll('input[name="no_copy_buku[]"]:checked');
-  const jumlahBuku = bukuChecked.length;
-
-  // Hitung denda keterlambatan
-  const dendaTelat = hari * tarifPerHari * jumlahBuku;
-
-  // Status pengembalian
-  const statusDiv = document.getElementById('status_pengembalian');
-  if (tgl && kembali) {
-    statusDiv.className = tgl <= kembali 
-      ? "status-display status-tepat" 
-      : "status-display status-telat";
-    statusDiv.innerHTML = tgl <= kembali
-      ? "<i class='fas fa-check-circle me-1'></i> Tepat Waktu"
-      : `<i class='fas fa-exclamation-circle me-1'></i> Terlambat ${hari} hari`;
-  }
-
-  // Denda tambahan
-  const tambahan = document.getElementById('id_denda_tambahan');
-  let tarifTambahan = 0;
-  if (tambahan.value) {
-    const option = tambahan.options[tambahan.selectedIndex];
-    tarifTambahan = parseInt(option.text.split('Rp')[1].replace(/\D/g, '')) || 0;
-  }
-  const totalTambahan = tarifTambahan * jumlahBuku;
-
-  // Total denda
-  const totalDenda = dendaTelat + totalTambahan;
-
-  document.getElementById('denda_telat_display').value = dendaTelat.toLocaleString('id-ID', {style: 'currency', currency: 'IDR'});
-  document.getElementById('total_denda_display').value = totalDenda.toLocaleString('id-ID', {style: 'currency', currency: 'IDR'});
-  document.getElementById('tarif_denda').value = totalDenda;
-}
-
-function resetDenda() {
-  document.getElementById('status_pengembalian').innerHTML = '';
-  document.getElementById('denda_telat_display').value = '';
-  document.getElementById('total_denda_display').value = '';
-  document.getElementById('tarif_denda').value = '';
-}
-
-function toggleSubmit() {
-  const jumlah = document.querySelectorAll('input[name="no_copy_buku[]"]:checked').length;
-  document.querySelector('[name="simpan"]').disabled = jumlah === 0;
-}
-document.addEventListener('change', function(e) {
-  if (e.target.name === 'no_copy_buku[]') toggleSubmit();
 });
 
-// Set tanggal pengembalian default ke hari ini
-document.addEventListener('DOMContentLoaded', function() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('tglPengembalian').value = today;
-    document.getElementById('tglPengembalian').min = today;
-});
 </script>
 
 </body>
