@@ -23,26 +23,66 @@ while ($row = $result_kunjungan->fetch_assoc()) {
 }
 
 // --- Ambil Data Buku Belum Dikembalikan / Terlambat ---
-$query_terlambat = "
-    SELECT a.nm_anggota, b.judul_buku, p.tgl_harus_kembali,
-           DATEDIFF(CURDATE(), p.tgl_harus_kembali) AS telat
-    FROM peminjaman p
-    JOIN anggota a ON a.id_anggota = p.id_anggota
-    JOIN dapat d ON d.no_peminjaman = p.no_peminjaman
-    JOIN copy_buku cb ON cb.no_copy_buku = d.no_copy_buku
-    JOIN buku b ON b.id_buku = cb.id_buku
-    WHERE NOT EXISTS (
-        SELECT 1 FROM pengembalian k 
-        WHERE k.no_peminjaman = p.no_peminjaman
-    ) AND p.tgl_harus_kembali < CURDATE()
-    ORDER BY p.tgl_harus_kembali ASC
-    LIMIT 5
+$sql = "
+SELECT 
+    p.no_peminjaman,
+    p.tgl_harus_kembali,
+    a.id_anggota,
+    a.nm_anggota,
+    b.id_buku,
+    b.judul_buku,
+    cb.no_copy_buku,
+    DATEDIFF(CURDATE(), p.tgl_harus_kembali) AS telat
+FROM peminjaman p
+JOIN anggota a ON a.id_anggota = p.id_anggota
+JOIN dapat d ON d.no_peminjaman = p.no_peminjaman
+JOIN copy_buku cb ON cb.no_copy_buku = d.no_copy_buku
+JOIN buku b ON b.id_buku = cb.id_buku
+WHERE NOT EXISTS (
+    SELECT 1 FROM pengembalian k
+    WHERE k.no_peminjaman = p.no_peminjaman
+)
+AND p.tgl_harus_kembali < CURDATE()
+ORDER BY p.tgl_harus_kembali ASC
 ";
-$result_terlambat = $conn->query($query_terlambat);
+
+$result = $conn->query($sql);
+$data_terlambat = [];
+
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $no_peminjaman = $row['no_peminjaman'];
+
+        if (!isset($data_terlambat[$no_peminjaman])) {
+            $data_terlambat[$no_peminjaman] = [
+                'no_peminjaman' => $no_peminjaman,
+                'tgl_harus_kembali' => $row['tgl_harus_kembali'],
+                'id_anggota' => $row['id_anggota'],
+                'nm_anggota' => $row['nm_anggota'],
+                'telat' => $row['telat'],
+                'buku' => []
+            ];
+        }
+
+        $id_buku = $row['id_buku'];
+        if ($id_buku) {
+            if (!isset($data_terlambat[$no_peminjaman]['buku'][$id_buku])) {
+                $data_terlambat[$no_peminjaman]['buku'][$id_buku] = [
+                    'judul' => $row['judul_buku'],
+                    'copy' => []
+                ];
+            }
+
+            if ($row['no_copy_buku']) {
+                $data_terlambat[$no_peminjaman]['buku'][$id_buku]['copy'][] = $row['no_copy_buku'];
+            }
+        }
+    }
+}
 
 // --- 5 Peminjaman Terakhir ---
 $query_peminjaman_terakhir = "
-    SELECT p.tgl_peminjaman, a.nm_anggota 
+    SELECT p.*, a.nm_anggota 
     FROM peminjaman p 
     JOIN anggota a ON a.id_anggota = p.id_anggota 
     ORDER BY p.tgl_peminjaman DESC 
@@ -52,7 +92,7 @@ $result_peminjaman = $conn->query($query_peminjaman_terakhir);
 
 // --- 5 Pengembalian Terakhir ---
 $query_pengembalian_terakhir = "
-    SELECT k.tgl_pengembalian, a.nm_anggota 
+    SELECT k.*, a.nm_anggota 
     FROM pengembalian k 
     JOIN peminjaman p ON k.no_peminjaman = p.no_peminjaman 
     JOIN anggota a ON a.id_anggota = p.id_anggota 
@@ -60,6 +100,7 @@ $query_pengembalian_terakhir = "
     LIMIT 5
 ";
 $result_pengembalian = $conn->query($query_pengembalian_terakhir);
+
 ?>
 
 <style>
@@ -155,40 +196,45 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header bg-danger text-white">
-                    <strong>Buku Belum Dikembalikan / Terlambat</strong>
+                    <strong>Buku yang Telat Dikembalikan</strong>
                 </div>
                 <div class="card-body p-2">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm mb-0">
-                            <thead class="table-light">
+                        <table class="table table-bordered table-sm">
+                            <thead>
                                 <tr>
                                     <th>No</th>
-                                    <th>Nama</th>
-                                    <th>Judul</th>
+                                    <th>Nama Anggota</th>
+                                    <th>Judul Buku</th>
+                                    <th>Copy Buku</th>
                                     <th>Deadline</th>
                                     <th>Telat</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php
-                                if ($result_terlambat->num_rows > 0) {
+                                if (!empty($data_terlambat)) {
                                     $no = 1;
-                                    while ($row = $result_terlambat->fetch_assoc()) {
-                                        echo "<tr>
-                                            <td>{$no}</td>
-                                            <td>{$row['nm_anggota']}</td>
-                                            <td>{$row['judul_buku']}</td>
-                                            <td>{$row['tgl_harus_kembali']}</td>
-                                            <td>{$row['telat']} hari</td>
-                                        </tr>";
-                                        $no++;
+                                    foreach ($data_terlambat as $row) {
+                                        foreach ($row['buku'] as $buku) {
+                                            echo "<tr>
+                        <td>{$no}</td>
+                        <td>{$row['nm_anggota']}</td>
+                        <td>{$buku['judul']}</td>
+                        <td>" . implode(', ', $buku['copy']) . "</td>
+                        <td>{$row['tgl_harus_kembali']}</td>
+                        <td>{$row['telat']} hari</td>
+                    </tr>";
+                                            $no++;
+                                        }
                                     }
                                 } else {
-                                    echo "<tr><td colspan='5' class='text-center'>Tidak ada keterlambatan.</td></tr>";
+                                    echo "<tr><td colspan='6' class='text-center'>Tidak ada keterlambatan.</td></tr>";
                                 }
                                 ?>
                             </tbody>
                         </table>
+
                     </div>
                 </div>
             </div>
