@@ -158,13 +158,21 @@ if ($result) {
                                         <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                            <td class="text-center align-middle">
+                                <div class="d-flex justify-content-center align-items-center" style="gap: 5px;">
+                                    <!-- Tombol Edit -->
+                                    <a href="admin.php?page=perpus_utama&panggil=tambah_pengembalian.php&edit=<?= urlencode($item['no_pengembalian']) ?>"
+                                    class="btn btn-sm btn-warning">
+                                        <i class="fa fa-pen-to-square"></i>
+                                    </a>
+                                    <!-- Tombol Hapus -->
                                     <a href="admin.php?page=perpus_utama&panggil=pengembalian.php&hapus=<?= urlencode($item['no_pengembalian']) ?>"
-                                       class="btn btn-sm btn-danger"
-                                       onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                    class="btn btn-sm btn-danger"
+                                    onclick="return confirm('Yakin ingin menghapus data ini?')">
                                         <i class="fa fa-trash"></i>
                                     </a>
-                                </td>
+                                </div>
+                            </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
