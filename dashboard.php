@@ -63,36 +63,14 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
 ?>
 
 <style>
-    html, body {
-    margin: 0;
-    padding: 0;
-    height: 100vh;
-    overflow: hidden;
-}
-
-.container-dashboard {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.section-scrollable {
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 10px;
-}
-
-    .card{
+    .card {
         max-width: 100%;
     }
 </style>
 <!-- ===== HTML DIMULAI DI SINI ===== -->
-<div class="container-dashboard">
-    <div class="section-scrollable px-4">
-
+<div style="padding: 0 5%;">
     <!-- Kartu Statistik -->
-    <div class="row text-center">
+    <div class="row text-center mb-2">
         <?php
         $cards = [
             ['label' => 'Total Buku', 'value' => $jumlah_buku, 'bg' => 'primary'],
@@ -100,11 +78,10 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
             ['label' => 'Total Anggota', 'value' => $jumlah_anggota, 'bg' => 'warning text-dark'],
             ['label' => 'Total Peminjaman', 'value' => $jumlah_peminjaman, 'bg' => 'danger'],
         ];
-
         foreach ($cards as $card) {
             echo "
             <div class='col-md-3'>
-                <div class='card bg-{$card['bg']} text-white mb-3'>
+                <div class='card bg-{$card['bg']} text-white'>
                     <div class='card-body'>
                         <h5>{$card['label']}</h5>
                         <h2>{$card['value']}</h2>
@@ -115,96 +92,153 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
         ?>
     </div>
 
-    <!-- Grafik + Peminjaman/Pengembalian -->
+    <!-- Grafik dan Panel Kanan -->
     <div class="row mb-4">
-        <!-- Grafik -->
+        <!-- Grafik Kunjungan -->
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header bg-secondary text-white">
                     <strong>Grafik Kunjungan Per Bulan</strong>
                 </div>
                 <div class="card-body">
-                    <canvas id="kunjunganChart" height="240"></canvas>
+                    <canvas id="kunjunganChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Peminjaman & Pengembalian Terakhir -->
+        <!-- Panel Kanan -->
         <div class="col-md-6">
-            <!-- Peminjaman -->
-            <div class="card mb-3">
-                <div class="card-header bg-info text-white">
-                    <strong>5 Peminjaman Terakhir</strong>
+            <!-- Peminjaman & Pengembalian Terakhir -->
+            <div class="row h-100">
+                <!-- Peminjaman -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-info text-white">
+                            <strong>5 Peminjaman Terakhir</strong>
+                        </div>
+                        <div class="card-body p-2">
+                            <ul class="list-group list-group-flush">
+                                <?php while ($row = $result_peminjaman->fetch_assoc()): ?>
+                                    <li class="list-group-item small">
+                                        <strong><?= $row['nm_anggota'] ?></strong><br>
+                                        <em><?= $row['tgl_peminjaman'] ?></em>
+                                    </li>
+                                <?php endwhile; ?>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <ul class="list-group">
-                        <?php while ($row = $result_peminjaman->fetch_assoc()): ?>
-                            <li class="list-group-item">
-                                <strong><?= $row['nm_anggota'] ?></strong> meminjam buku pada <em><?= $row['tgl_peminjaman'] ?></em>
-                            </li>
-                        <?php endwhile; ?>
-                    </ul>
+
+                <!-- Pengembalian -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-success text-white">
+                            <strong>5 Pengembalian Terakhir</strong>
+                        </div>
+                        <div class="card-body p-2">
+                            <ul class="list-group list-group-flush">
+                                <?php while ($row = $result_pengembalian->fetch_assoc()): ?>
+                                    <li class="list-group-item small">
+                                        <strong><?= $row['nm_anggota'] ?></strong><br>
+                                        <em><?= $row['tgl_pengembalian'] ?></em>
+                                    </li>
+                                <?php endwhile; ?>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <!-- Pengembalian -->
+        </div>
+        <!-- Buku Belum Dikembalikan -->
+    </div>
+    <div class="row">
+        <div class="col-md-12">
             <div class="card">
-                <div class="card-header bg-success text-white">
-                    <strong>5 Pengembalian Terakhir</strong>
+                <div class="card-header bg-danger text-white">
+                    <strong>Buku Belum Dikembalikan / Terlambat</strong>
                 </div>
-                <div class="card-body">
-                    <ul class="list-group">
-                        <?php while ($row = $result_pengembalian->fetch_assoc()): ?>
-                            <li class="list-group-item">
-                                <strong><?= $row['nm_anggota'] ?></strong> mengembalikan buku pada <em><?= $row['tgl_pengembalian'] ?></em>
-                            </li>
-                        <?php endwhile; ?>
-                    </ul>
+                <div class="card-body p-2">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama</th>
+                                    <th>Judul</th>
+                                    <th>Deadline</th>
+                                    <th>Telat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                if ($result_terlambat->num_rows > 0) {
+                                    $no = 1;
+                                    while ($row = $result_terlambat->fetch_assoc()) {
+                                        echo "<tr>
+                                            <td>{$no}</td>
+                                            <td>{$row['nm_anggota']}</td>
+                                            <td>{$row['judul_buku']}</td>
+                                            <td>{$row['tgl_harus_kembali']}</td>
+                                            <td>{$row['telat']} hari</td>
+                                        </tr>";
+                                        $no++;
+                                    }
+                                } else {
+                                    echo "<tr><td colspan='5' class='text-center'>Tidak ada keterlambatan.</td></tr>";
+                                }
+                                ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Buku Belum Dikembalikan -->
-    <div class="card mb-4">
-        <div class="card-header bg-danger text-white">
-            <strong>Buku Belum Dikembalikan / Terlambat</strong>
-        </div>
-        <div class="card-body">
-            <table class="table table-bordered table-sm">
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Nama Anggota</th>
-                        <th>Judul Buku</th>
-                        <th>Tgl Harus Kembali</th>
-                        <th>Keterlambatan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    if ($result_terlambat->num_rows > 0) {
-                        $no = 1;
-                        while ($row = $result_terlambat->fetch_assoc()) {
-                            echo "<tr>
-                                <td>{$no}</td>
-                                <td>{$row['nm_anggota']}</td>
-                                <td>{$row['judul_buku']}</td>
-                                <td>{$row['tgl_harus_kembali']}</td>
-                                <td>{$row['telat']} hari</td>
-                            </tr>";
-                            $no++;
-                        }
-                    } else {
-                        echo "<tr><td colspan='5' class='text-center'>Tidak ada data keterlambatan.</td></tr>";
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('kunjunganChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: <?= json_encode($bulan_labels); ?>,
+            datasets: [{
+                label: 'Jumlah Kunjungan',
+                data: <?= json_encode($jumlah_kunjungan); ?>,
+                fill: true,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: 'rgba(54, 162, 235, 1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    enabled: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
                     }
-                    ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-</div>
+                }
+            }
+        }
+    });
+</script>
+
 
 
 <!-- Chart.js -->
@@ -232,13 +266,19 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
         options: {
             responsive: true,
             plugins: {
-                legend: { position: 'top' },
-                tooltip: { enabled: true }
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    enabled: true
+                }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { precision: 0 }
+                    ticks: {
+                        precision: 0
+                    }
                 }
             }
         }
