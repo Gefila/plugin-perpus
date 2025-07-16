@@ -10,7 +10,6 @@ if (!$tgl_mulai || !$tgl_selesai) {
     die("Silakan pilih tanggal terlebih dahulu.");
 }
 
-
 $query = "
     SELECT 
         pg.no_pengembalian,
@@ -33,14 +32,12 @@ $query = "
 ";
 
 $result = $conn->query($query);
-
-// Mulai output tabel
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Laporan Peminjaman Buku</title>
+    <title>Laporan Pengembalian Buku</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <style>
         @page {
@@ -51,6 +48,7 @@ $result = $conn->query($query);
         body {
             font-family: Arial, sans-serif;
             font-size: 14px;
+            background-color: #f0f6ff;
             margin: 0;
             padding: 0;
         }
@@ -62,18 +60,22 @@ $result = $conn->query($query);
         h2 {
             text-align: center;
             margin-bottom: 0;
+            color: #0d6efd;
         }
 
         p {
             text-align: center;
             margin-top: 5px;
             margin-bottom: 20px;
+            color: #198754;
+            font-weight: bold;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            background-color: white;
         }
 
         th, td {
@@ -83,7 +85,8 @@ $result = $conn->query($query);
         }
 
         th {
-            background-color: #eee;
+            background-color: #e3f2fd;
+            font-weight: bold;
         }
 
         @media print {
@@ -91,9 +94,9 @@ $result = $conn->query($query);
                 width: 230mm;
                 height: 297mm;
             }
+
             #btn-cetak {
                 display: none;
-
             }
         }
     </style>
@@ -122,34 +125,32 @@ $result = $conn->query($query);
             <?php $no = 1; while ($row = $result->fetch_assoc()): ?>
                 <tr>
                     <td><?= $no++ ?></td>
-                    <td><?= $row['no_pengembalian'] ?></td>
-                    <td><?= date('d-m-Y', strtotime($row['tgl_pengembalian'])) ?></td>
-                    <td><?= $row['id_anggota'] ?></td>
-                    <td><?= $row['nm_anggota'] ?></td>
-                    <td><?= $row['id_buku'] ?></td>
-                    <td><?= $row['judul_buku'] ?></td>
-                    <td><?= $row['no_copy'] ?></td>
+                    <td><?= htmlspecialchars($row['no_pengembalian']) ?></td>
+                    <td><?= date('d M Y', strtotime($row['tgl_pengembalian'])) ?></td>
+                    <td><?= htmlspecialchars($row['id_anggota']) ?></td>
+                    <td><?= htmlspecialchars($row['nm_anggota']) ?></td>
+                    <td><?= htmlspecialchars($row['id_buku']) ?></td>
+                    <td><?= htmlspecialchars($row['judul_buku']) ?></td>
+                    <td><?= htmlspecialchars($row['no_copy']) ?></td>
                     <td><?= $row['jumlah'] ?></td>
                 </tr>
             <?php endwhile; ?>
         <?php else: ?>
             <tr>
-                <td colspan="9">Tidak ada data peminjaman dalam periode ini.</td>
+                <td colspan="9" class="text-muted">Tidak ada data pengembalian dalam periode ini.</td>
             </tr>
         <?php endif; ?>
         </tbody>
     </table>
+
     <?php if ($result && $result->num_rows > 0): ?>
         <div style="text-align:center; margin-top:20px;">
-            <button id="btn-cetak" onclick="window.print()" class="btn btn-danger">Cetak</button>
+            <button id="btn-cetak" onclick="window.print()" class="btn btn-success">Cetak</button>
         </div>
     <?php endif; ?>
 </div>
 
 <script>
-    // window.onload = function () {
-    //     window.print();
-    // };
     window.addEventListener('afterprint', function () {
         window.close();
     });
