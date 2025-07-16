@@ -90,7 +90,7 @@ function perpus_modulku() {
                 echo '<div class="alert alert-danger">File tidak ditemukan: ' . htmlspecialchars($file) . '</div>';
             }
         } else {
-            echo '<h3>Selamat datang di Plugin Perpustakaan</h3>';
+            include(plugin_dir_path(__FILE__) . 'dashboard.php');
         }
         ?>
     </div>
