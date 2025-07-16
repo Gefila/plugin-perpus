@@ -168,6 +168,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     transform: translateY(-2px);
 }
 
+.perpus-btn-warning {
+    background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%);
+    color: white;
+    border: none;
+}
+
+.perpus-btn-warning:hover {
+    background: linear-gradient(135deg, #e6b22e 0%, #cd9200 100%);
+    transform: translateY(-2px);
+}
+
 .perpus-btn-secondary {
     background: #f8f9fc;
     color: #4e73df;
@@ -265,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             
             <div class="perpus-btn-group">
-                <button type="submit" class="perpus-btn perpus-btn-primary">
+                 <button type="submit" class="perpus-btn <?= isset($editData) ? 'perpus-btn-warning' : 'perpus-btn-primary' ?>">
                     <i class="fas fa-save"></i>
                     <?= isset($editData) ? 'Update' : 'Simpan' ?>
                 </button>
