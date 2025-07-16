@@ -3,16 +3,15 @@ require_once('../../../wp-load.php');
 global $wpdb;
 $conn = $wpdb->dbh;
 
-// Ambil filter tanggal
 $tgl_dari = $_GET['tgl_mulai'] ?? '';
 $tgl_sampai = $_GET['tgl_selesai'] ?? '';
 
-$where = "";
-if ($tgl_dari && $tgl_sampai) {
-    $tgl_dari_sql = $conn->real_escape_string($tgl_dari);
-    $tgl_sampai_sql = $conn->real_escape_string($tgl_sampai);
-    $where = "WHERE p.tgl_pengembalian BETWEEN '$tgl_dari_sql' AND '$tgl_sampai_sql'";
+if (!$tgl_dari || !$tgl_sampai) {
+    echo "<div style='text-align:center;color:red;'>Silakan pilih tanggal terlebih dahulu.</div>";
+    exit;
 }
+
+$where = "WHERE p.tgl_pengembalian BETWEEN '$tgl_dari' AND '$tgl_sampai'";
 
 // Query laporan denda
 $sql = "
@@ -41,7 +40,6 @@ $result = $conn->query($sql);
 $data = [];
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        // Hitung hari keterlambatan
         $telat = 0;
         $tgl_pengembalian = strtotime($row['tgl_pengembalian']);
         $tgl_harus_kembali = strtotime($row['tgl_harus_kembali']);
@@ -51,7 +49,6 @@ if ($result) {
 
         $row['hari_telat'] = (int)$telat;
 
-        // Ambil list copy buku
         $no_pengembalian = $conn->real_escape_string($row['no_pengembalian']);
         $copy_q = $conn->query("SELECT no_copy_buku FROM bisa WHERE no_pengembalian = '$no_pengembalian'");
         $copy_list = [];
@@ -67,9 +64,8 @@ if ($result) {
 
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Cetak Laporan Denda</title>
+    <title>Laporan Denda Perpustakaan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         @page {
@@ -82,6 +78,7 @@ if ($result) {
             font-size: 14px;
             margin: 0;
             padding: 0;
+            background-color: #f0f6ff;
         }
 
         .container {
@@ -91,36 +88,38 @@ if ($result) {
         h2 {
             text-align: center;
             margin-bottom: 0;
+            color: #0d6efd;
         }
 
         p {
             text-align: center;
             margin-top: 5px;
             margin-bottom: 20px;
+            color: #198754;
+            font-weight: bold;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            background-color: white;
             margin-top: 10px;
         }
 
-        th,
-        td {
+        th, td {
             border: 1px solid #555;
             padding: 8px;
             text-align: center;
         }
 
         th {
-            background-color: #eee;
+            background-color: #e3f2fd;
         }
 
         .badge {
             font-weight: bold;
-            color: black;
+            color: #000;
         }
-
 
         #btn-cetak {
             margin-top: 20px;
@@ -128,87 +127,80 @@ if ($result) {
         }
 
         @media print {
-
-            html,
-            body {
+            html, body {
                 width: 230mm;
                 height: 297mm;
             }
-
             #btn-cetak {
                 display: none;
-
             }
         }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <h2>LAPORAN DENDA PERPUSTAKAAN</h2>
-        <p>Periode: <?= date('d-m-Y', strtotime($tgl_dari)) ?> s/d <?= date('d-m-Y', strtotime($tgl_sampai)) ?></p>
+<div class="container">
+    <h2>LAPORAN DENDA PERPUSTAKAAN</h2>
+    <p>Periode: <?= date('d-m-Y', strtotime($tgl_dari)) ?> s/d <?= date('d-m-Y', strtotime($tgl_sampai)) ?></p>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>No</th>
-                    <th>ID Kembali Denda</th>
-                    <th>ID Anggota</th>
-                    <th>Nama</th>
-                    <th>Tgl Pinjam</th>
-                    <th>Tgl Kembali</th>
-                    <th>Copy Buku</th>
-                    <th>Alasan Denda</th>
-                    <th>Subtotal (Rp)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (!empty($data)): ?>
-                    <?php $no = 1;
-                    foreach ($data as $item): ?>
-                        <tr>
-                            <td><?= $no++ ?></td>
-                            <td><?= $item['id_kembali_denda'] ?></td>
-                            <td><?= $item['id_anggota'] ?></td>
-                            <td><?= $item['nm_anggota'] ?></td>
-                            <td><?= date('d-m-Y', strtotime($item['tgl_peminjaman'])) ?></td>
-                            <td><?= date('d-m-Y', strtotime($item['tgl_pengembalian'])) ?></td>
-                            <td><?= $item['copy_buku'] ?></td>
-                            <td>
-                                <?php
-                                $alasan = $item['alasan_denda'];
-                                $hari_telat = $item['hari_telat'] ?? 0;
-                                if ($item['id_denda'] === 'D1' && stripos($alasan, 'telat') !== false && $hari_telat > 0) {
-                                    echo "<span class='badge'>Telat {$hari_telat} hari</span>";
-                                } else {
-                                    echo "<span class='badge'>" . htmlspecialchars($alasan) . "</span>";
-                                }
-                                ?>
-                            </td>
-                            <td><?= number_format($item['subtotal'], 0, ',', '.') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="9">Tidak ada data denda dalam periode ini.</td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-
+    <table>
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>ID Kembali Denda</th>
+                <th>ID Anggota</th>
+                <th>Nama</th>
+                <th>Tgl Pinjam</th>
+                <th>Tgl Kembali</th>
+                <th>No Copy Buku</th>
+                <th>Alasan Denda</th>
+                <th>Subtotal (Rp)</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php if (!empty($data)): ?>
-            <div id="btn-cetak" class="text-center">
-                <button class="btn btn-danger mt-4" onclick="window.print()">Cetak</button>
-            </div>
+            <?php $no = 1;
+            foreach ($data as $item): ?>
+                <tr>
+                    <td><?= $no++ ?></td>
+                    <td><?= htmlspecialchars($item['id_kembali_denda']) ?></td>
+                    <td><?= htmlspecialchars($item['id_anggota']) ?></td>
+                    <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
+                    <td><?= date('d M Y', strtotime($item['tgl_peminjaman'])) ?></td>
+                    <td><?= date('d M Y', strtotime($item['tgl_pengembalian'])) ?></td>
+                    <td><?= htmlspecialchars($item['copy_buku']) ?></td>
+                    <td>
+                        <?php
+                        $alasan = $item['alasan_denda'];
+                        $hari_telat = $item['hari_telat'] ?? 0;
+                        if ($item['id_denda'] === 'D1' && stripos($alasan, 'telat') !== false && $hari_telat > 0) {
+                            echo "<span class='badge'>Telat {$hari_telat} hari</span>";
+                        } else {
+                            echo "<span class='badge'>" . htmlspecialchars($alasan) . "</span>";
+                        }
+                        ?>
+                    </td>
+                    <td><?= number_format($item['subtotal'], 0, ',', '.') ?></td>
+                </tr>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <tr>
+                <td colspan="9" class="text-muted">Tidak ada data denda dalam periode ini.</td>
+            </tr>
         <?php endif; ?>
+        </tbody>
+    </table>
 
-    </div>
+    <?php if (!empty($data)): ?>
+        <div id="btn-cetak" class="text-center">
+            <button class="btn btn-success mt-4" onclick="window.print()">Cetak</button>
+        </div>
+    <?php endif; ?>
+</div>
 
-    <script>
-        window.addEventListener('afterprint', function() {
-            window.close();
-        });
-    </script>
+<script>
+    window.addEventListener('afterprint', function () {
+        window.close();
+    });
+</script>
 </body>
-
 </html>
