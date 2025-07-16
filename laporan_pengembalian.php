@@ -96,49 +96,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($tgl_mulai) && !empty($tgl_se
         </div>
     </form>
 
-<?php if (!empty($data)): ?>
-    <div class="card-glass mb-4">
-        <h5 class="text-center text-success">
-            Menampilkan pengembalian dari <strong><?= htmlspecialchars($tgl_mulai) ?></strong> sampai <strong><?= htmlspecialchars($tgl_selesai) ?></strong>
-        </h5>
-    </div>
+    <?php if (!empty($data)): ?>
+        <div class="card-glass mb-4">
+            <h5 class="text-center text-success">
+                Menampilkan pengembalian dari <strong><?= htmlspecialchars($tgl_mulai) ?></strong> sampai <strong><?= htmlspecialchars($tgl_selesai) ?></strong>
+            </h5>
+        </div>
 
-    <table class="table table-bordered table-hover">
-        <thead class="table-dark">
-            <tr>
-                <th>No</th>
-                <th>No Pengembalian</th>
-                <th>Tanggal Kembali</th>
-                <th>ID Anggota</th>
-                <th>Nama Anggota</th>
-                <th>ID Buku</th>
-                <th>Judul Buku</th>
-                <th>No Copy Buku</th>
-                <th>Jumlah</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php $no = 1; ?>
-            <?php foreach ($data as $item): ?>
-                <?php foreach ($item['buku'] as $id_buku => $b): ?>
+        <table class="table table-bordered table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>No</th>
+                    <th>No Pengembalian</th>
+                    <th>Tanggal Kembali</th>
+                    <th>ID Anggota</th>
+                    <th>Nama Anggota</th>
+                    <th>Judul Buku</th>
+                    <th>No Copy Buku</th>
+                    <th>Jumlah</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php $no = 1;
+                foreach ($data as $item): ?>
                     <tr>
                         <td><?= $no++ ?></td>
-                        <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
+                        <td><?= $item['no_pengembalian'] ?></td>
                         <td><?= date('d-m-Y', strtotime($item['tgl_pengembalian'])) ?></td>
-                        <td><?= htmlspecialchars($item['id_anggota']) ?></td>
-                        <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
-                        <td><?= htmlspecialchars($id_buku) ?></td>
-                        <td><?= htmlspecialchars($b['judul']) ?></td>
+                        <td><?= $item['id_anggota'] ?></td>
+                        <td><?= $item['nm_anggota'] ?></td>
                         <td>
-                            <?= implode(', ', array_map('htmlspecialchars', $b['copy'])) ?>
+                            <?php foreach ($item['buku'] as $id_buku => $b): ?>
+                                <strong><?= htmlspecialchars($id_buku) ?></strong> - <?= htmlspecialchars($b['judul']) ?><br>
+                            <?php endforeach; ?>
                         </td>
-                        <td><?= count($b['copy']) ?></td>
+                        <td>
+                            <?php foreach ($item['buku'] as $id_buku => $b): ?>
+                                <strong><?= htmlspecialchars($id_buku) ?>:</strong><br>
+                                <?php foreach ($b['copy'] as $copy): ?>
+                                    <?= htmlspecialchars($copy) ?><br>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </td>
+                        <td><?= count($item['buku']) > 0 ? array_sum(array_map('count', array_column($item['buku'], 'copy'))) : 0 ?></td>
                     </tr>
                 <?php endforeach; ?>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-<?php endif; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
 
 </div>
 

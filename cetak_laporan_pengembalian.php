@@ -34,8 +34,6 @@ $sql = "
 ";
 
 $result = $conn->query($sql);
-
-// Susun data seperti laporan_pengembalian.php
 $data = [];
 
 if ($result) {
@@ -79,7 +77,6 @@ if ($result) {
             size: A4 portrait;
             margin: 20mm;
         }
-
         body {
             font-family: Arial, sans-serif;
             font-size: 14px;
@@ -87,17 +84,14 @@ if ($result) {
             margin: 0;
             padding: 0;
         }
-
         .container {
             padding: 20px 40px;
         }
-
         h2 {
             text-align: center;
             margin-bottom: 0;
             color: #0d6efd;
         }
-
         p {
             text-align: center;
             margin-top: 5px;
@@ -105,20 +99,17 @@ if ($result) {
             color: #198754;
             font-weight: bold;
         }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
             background-color: white;
         }
-
         th, td {
             border: 1px solid #555;
             padding: 8px;
             text-align: center;
         }
-
         th {
             background-color: #e3f2fd;
             font-weight: bold;
@@ -129,7 +120,6 @@ if ($result) {
                 width: 230mm;
                 height: 297mm;
             }
-
             #btn-cetak {
                 display: none;
             }
@@ -149,9 +139,8 @@ if ($result) {
             <th>Tanggal Kembali</th>
             <th>ID Anggota</th>
             <th>Nama Anggota</th>
-            <th>ID Buku</th>
             <th>Judul Buku</th>
-            <th>No Copy Buku</th>
+            <th>Copy Buku</th>
             <th>Jumlah</th>
         </tr>
         </thead>
@@ -159,23 +148,32 @@ if ($result) {
         <?php if (!empty($data)): ?>
             <?php $no = 1; ?>
             <?php foreach ($data as $item): ?>
-                <?php foreach ($item['buku'] as $id_buku => $b): ?>
-                    <tr>
-                        <td><?= $no++ ?></td>
-                        <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
-                        <td><?= date('d M Y', strtotime($item['tgl_pengembalian'])) ?></td>
-                        <td><?= htmlspecialchars($item['id_anggota']) ?></td>
-                        <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
-                        <td><?= htmlspecialchars($id_buku) ?></td>
-                        <td><?= htmlspecialchars($b['judul']) ?></td>
-                        <td><?= htmlspecialchars(implode(', ', $b['copy'])) ?></td>
-                        <td><?= count($b['copy']) ?></td>
-                    </tr>
-                <?php endforeach; ?>
+                <?php
+                $judulList = '';
+                $copyList = '';
+                $jumlahCopy = 0;
+                foreach ($item['buku'] as $id_buku => $b) {
+                    $judulList .= "<strong>" . htmlspecialchars($id_buku) . "</strong> - " . htmlspecialchars($b['judul']) . "<br>";
+                    foreach ($b['copy'] as $copy) {
+                        $copyList .= htmlspecialchars($copy) . "<br>";
+                    }
+                    $jumlahCopy += count($b['copy']);
+                }
+                ?>
+                <tr>
+                    <td><?= $no++ ?></td>
+                    <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
+                    <td><?= date('d-m-Y', strtotime($item['tgl_pengembalian'])) ?></td>
+                    <td><?= htmlspecialchars($item['id_anggota']) ?></td>
+                    <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
+                    <td class="text-left"><?= $judulList ?></td>
+                    <td class="text-left"><?= $copyList ?></td>
+                    <td><?= $jumlahCopy ?></td>
+                </tr>
             <?php endforeach; ?>
         <?php else: ?>
             <tr>
-                <td colspan="9" class="text-muted">Tidak ada data pengembalian dalam periode ini.</td>
+                <td colspan="8" class="text-muted">Tidak ada data pengembalian dalam periode ini.</td>
             </tr>
         <?php endif; ?>
         </tbody>
