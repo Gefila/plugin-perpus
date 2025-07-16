@@ -25,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $jenis_kelamin = $conn->real_escape_string($_POST['jenis_kelamin']);
 
     // Validasi sederhana
-    if (empty($nm_anggota) || $kelas < 1 || $kelas > 6 || !in_array($jenis_kelamin, ['L', 'P'])) {
+    if (empty($nm_anggota) || $kelas < 1 || $kelas > 7 || !in_array($jenis_kelamin, ['L', 'P'])) {
         $error = "Mohon isi semua data dengan benar.";
     } else {
         // Insert ke database
@@ -290,17 +290,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             
             <div class="perpus-input-group">
-                <label for="kelas">Kelas <span class="text-danger">*</span></label>
-                <div class="perpus-select-wrapper">
-                    <select id="kelas" name="kelas" class="form-select" required>
-                        <option value="">-- Pilih Kelas --</option>
-                        <?php for ($i = 1; $i <= 6; $i++): ?>
-                            <option value="<?= $i ?>" <?= ($kelas == $i) ? "selected" : "" ?>>
-                                Kelas <?= $i ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
+                <label for="kelas">Kelas</label>
+                <select name="kelas" id="kelas" required>
+                    <option value="">-- Pilih Kelas --</option>
+                    <?php
+                    for ($i = 1; $i <= 6; $i++) {
+                        // Saat edit, tandai selected jika nilai cocok
+                        $selected = (isset($data['kelas']) && $data['kelas'] == $i) ? 'selected' : '';
+                        echo "<option value=\"$i\" $selected>Kelas $i</option>";
+                    }
+                    // Tambahan Guru / Staf
+                    $selected = (isset($data['kelas']) && $data['kelas'] == 7) ? 'selected' : '';
+                    echo "<option value=\"7\" $selected>Guru / Staf</option>";
+                    ?>
+                </select>
             </div>
             
             <div class="perpus-input-group">

@@ -41,7 +41,7 @@ $result = $conn->query("SELECT * FROM anggota ORDER BY id_anggota");
                         <th style="width: 5%;">No</th>
                         <th style="width: 15%;">ID Anggota</th>
                         <th style="width: 35%;">Nama Anggota</th>
-                        <th style="width: 15%;">Kelas</th>
+                        <th style="width: 15%;">Roles</th>
                         <th style="width: 15%;">Jenis Kelamin</th>
                         <th style="width: 15%;">Aksi</th>
                     </tr>
@@ -50,6 +50,9 @@ $result = $conn->query("SELECT * FROM anggota ORDER BY id_anggota");
                     <?php
                     $no = 1;
                     if ($result && $result->num_rows > 0) {
+                        function tampilkanKelas($kelas) {
+                            return ($kelas == 7) ? 'Guru / Staf' : 'Kelas ' . $kelas;
+                        }
                         while ($row = $result->fetch_assoc()) {
                             $id     = htmlspecialchars($row['id_anggota']);
                             $nama   = htmlspecialchars($row['nm_anggota']);
@@ -61,7 +64,7 @@ $result = $conn->query("SELECT * FROM anggota ORDER BY id_anggota");
                                 <td>$no</td>
                                 <td>$id</td>
                                 <td>$nama</td>
-                                <td>$kelas</td>
+                                <td>" . tampilkanKelas($kelas) . "</td>
                                <td><span class='perpus-gender-badge perpus-gender-$jk' style='background-color:" . ($jk === 'male' ? '#3498db' : '#f78fb3') . ";color:#fff;padding:4px 12px;border-radius:16px;display:inline-block;min-width:90px;'>$jkText</span></td>
                                 <td>
                                     <a href='?page=perpus_utama&panggil=tambah_anggota.php&edit=$id' class='btn btn-warning btn-glow btn-sm me-1'>
