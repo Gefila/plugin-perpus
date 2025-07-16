@@ -1,6 +1,61 @@
 <?php
-// [Keep all your existing PHP code exactly the same until the style section]
+function generateIdDenda($conn) {
+    $result = $conn->query("SELECT id_denda FROM denda ORDER BY CAST(SUBSTRING(id_denda, 2) AS UNSIGNED) DESC LIMIT 1");
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $num = (int) substr($row['id_denda'], 1) + 1;
+    } else {
+        $num = 1;
+    }
+    return "D" . $num;
+}
+
+$idDenda = $tarifDenda = $alasanDenda = '';
+$isEdit = false;
+
+// Cek apakah sedang dalam mode edit
+if (isset($_GET['edit'])) {
+    $id = $conn->real_escape_string($_GET['edit']);
+    $result = $conn->query("SELECT * FROM denda WHERE id_denda = '$id'");
+    if ($result && $result->num_rows > 0) {
+        $data = $result->fetch_assoc();
+        $idDenda = $data['id_denda'];
+        $tarifDenda = $data['tarif_denda'];
+        $alasanDenda = $data['alasan_denda'];
+        $isEdit = true;
+    }
+} else {
+    $idDenda = generateIdDenda($conn); // untuk tambah baru
+}
+
+// Proses simpan data
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $idDenda = $conn->real_escape_string($_POST['idDenda']);
+    $tarifDenda = $conn->real_escape_string($_POST['tarifDenda']);
+    $alasanDenda = $conn->real_escape_string($_POST['alasanDenda']);
+
+    if (empty($idDenda) || empty($tarifDenda) || empty($alasanDenda)) {
+        echo '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Semua field harus diisi.</div>';
+    } else {
+        if (isset($_POST['editMode']) && $_POST['editMode'] === '1') {
+            // Mode Edit
+            $sql = "UPDATE denda SET tarif_denda='$tarifDenda', alasan_denda='$alasanDenda' WHERE id_denda='$idDenda'";
+        } else {
+            // Mode Tambah
+            $sql = "INSERT INTO denda (id_denda, tarif_denda, alasan_denda) VALUES ('$idDenda', '$tarifDenda', '$alasanDenda')";
+        }
+
+        if ($conn->query($sql)) {
+            echo '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Data berhasil disimpan.</div>';
+            echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=denda.php">';
+            exit;
+        } else {
+            echo '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Gagal menyimpan data: ' . $conn->error . '</div>';
+        }
+    }
+}
 ?>
+
 
 <!-- Replace the existing style section with this: -->
 <style>
