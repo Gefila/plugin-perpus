@@ -14,41 +14,54 @@ function generateIdAnggota($conn) {
     }
 }
 
+$isEdit = isset($_GET['edit']) && !empty($_GET['edit']);
 $error = "";
 $success = "";
 
-// Proses simpan data saat form disubmit
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $id_anggota = $conn->real_escape_string($_POST['id_anggota']);
-    $nm_anggota = $conn->real_escape_string($_POST['nm_anggota']);
-    $kelas      = (int)$_POST['kelas'];
-    $jenis_kelamin = $conn->real_escape_string($_POST['jenis_kelamin']);
+if ($isEdit) {
+    $id_edit = $conn->real_escape_string($_GET['edit']);
+    $query_edit = $conn->query("SELECT * FROM anggota WHERE id_anggota = '$id_edit'");
 
-    // Validasi sederhana
-    if (empty($nm_anggota) || $kelas < 1 || $kelas > 7 || !in_array($jenis_kelamin, ['L', 'P'])) {
-        $error = "Mohon isi semua data dengan benar.";
+    if ($query_edit && $query_edit->num_rows > 0) {
+        $data = $query_edit->fetch_assoc();
+        $id_anggota = $data['id_anggota'];
+        $nm_anggota = $data['nm_anggota'];
+        $kelas = $data['kelas'];
+        $jenis_kelamin = $data['jenis_kelamin'];
     } else {
-        // Insert ke database
-        $sql = "INSERT INTO anggota (id_anggota, nm_anggota, kelas, jenis_kelamin) VALUES ('$id_anggota', '$nm_anggota', $kelas, '$jenis_kelamin')";
-        if ($conn->query($sql)) {
-            $success = "Data anggota berhasil disimpan.";
-             echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=anggota.php">';
-            // generate id baru untuk form selanjutnya
-            $id_anggota = generateIdAnggota($conn);
-            // reset input lain
-            $nm_anggota = "";
-            $kelas = "";
-            $jenis_kelamin = "";
-        } else {
-            $error = "Gagal menyimpan data: " . $conn->error;
-        }
+        $error = "Data anggota tidak ditemukan.";
+        $isEdit = false;
     }
 } else {
-    // Untuk form pertama kali, generate id anggota
+    // Mode Tambah
     $id_anggota = generateIdAnggota($conn);
     $nm_anggota = "";
     $kelas = "";
     $jenis_kelamin = "";
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $id_anggota = $conn->real_escape_string($_POST['id_anggota']);
+    $nm_anggota = $conn->real_escape_string($_POST['nm_anggota']);
+    $kelas = (int)$_POST['kelas'];
+    $jenis_kelamin = $conn->real_escape_string($_POST['jenis_kelamin']);
+
+    if (empty($nm_anggota) || $kelas < 1 || $kelas > 7 || !in_array($jenis_kelamin, ['L', 'P'])) {
+        $error = "Mohon isi semua data dengan benar.";
+    } else {
+        if ($isEdit) {
+            $sql = "UPDATE anggota SET nm_anggota='$nm_anggota', kelas=$kelas, jenis_kelamin='$jenis_kelamin' WHERE id_anggota='$id_anggota'";
+        } else {
+            $sql = "INSERT INTO anggota (id_anggota, nm_anggota, kelas, jenis_kelamin) VALUES ('$id_anggota', '$nm_anggota', $kelas, '$jenis_kelamin')";
+        }
+
+        if ($conn->query($sql)) {
+            $success = $isEdit ? "Data anggota berhasil diupdate." : "Data anggota berhasil disimpan.";
+            echo '<meta http-equiv="refresh" content="1;url=?page=perpus_utama&panggil=anggota.php">';
+        } else {
+            $error = "Gagal menyimpan data: " . $conn->error;
+        }
+    }
 }
 ?>
 
@@ -245,9 +258,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <div class="perpus-form-container">
     <div class="perpus-form-header">
         <h2>
-            <i class="fas fa-user-plus"></i>
-            Tambah Anggota Baru
-        </h2>
+                <i class="fas fa-user-plus"></i>
+                <?= $isEdit ? 'Edit Anggota' : 'Tambah Anggota Baru' ?>
+            </h2>
     </div>
     
     <div class="perpus-form-body">
@@ -323,7 +336,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             
             <div class="perpus-btn-group">
                 <button type="submit" class="perpus-btn perpus-btn-primary">
-                    <i class="fas fa-save"></i> Simpan
+                    <i class="fas fa-save"></i> <?= $isEdit ? 'Update' : 'Simpan' ?>
                 </button>
                 <a href="?page=perpus_utama&panggil=anggota.php" class="perpus-btn perpus-btn-secondary">
                     <i class="fas fa-times"></i> Batal
