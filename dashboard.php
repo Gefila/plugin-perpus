@@ -79,7 +79,6 @@ if ($result) {
         }
     }
 }
-
 // --- 5 Peminjaman Terakhir ---
 $query_peminjaman_terakhir = "
     SELECT p.*, a.nm_anggota 
@@ -162,7 +161,10 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                 <?php while ($row = $result_peminjaman->fetch_assoc()): ?>
                                     <li class="list-group-item small">
                                         <strong><?= $row['nm_anggota'] ?></strong><br>
-                                        <em><?= $row['tgl_peminjaman'] ?></em>
+                                        <div>
+                                            <em><?= $row['no_peminjaman'] ?></em> - 
+                                            <?= date('d M Y', strtotime($row['tgl_peminjaman'])) ?>
+                                        </div>
                                     </li>
                                 <?php endwhile; ?>
                             </ul>
@@ -181,7 +183,10 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                 <?php while ($row = $result_pengembalian->fetch_assoc()): ?>
                                     <li class="list-group-item small">
                                         <strong><?= $row['nm_anggota'] ?></strong><br>
-                                        <em><?= $row['tgl_pengembalian'] ?></em>
+                                        <div>
+                                            <em><?= $row['no_pengembalian'] ?></em> - 
+                                            <?= date('d M Y', strtotime($row['tgl_pengembalian'])) ?>
+                                        </div>
                                     </li>
                                 <?php endwhile; ?>
                             </ul>
@@ -196,14 +201,14 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header bg-danger text-white">
-                    <strong>Buku yang Telat Dikembalikan</strong>
+                    <strong>Peminjaman yang Telat Dikembalikan</strong>
                 </div>
                 <div class="card-body p-2">
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm">
                             <thead>
                                 <tr>
-                                    <th>No</th>
+                                    <th>No Peminjaman</th>
                                     <th>Nama Anggota</th>
                                     <th>Judul Buku</th>
                                     <th>Copy Buku</th>
@@ -218,11 +223,11 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
                                     foreach ($data_terlambat as $row) {
                                         foreach ($row['buku'] as $buku) {
                                             echo "<tr>
-                        <td>{$no}</td>
+                        <td>{$row['no_peminjaman']}</td>
                         <td>{$row['nm_anggota']}</td>
                         <td>{$buku['judul']}</td>
                         <td>" . implode(', ', $buku['copy']) . "</td>
-                        <td>{$row['tgl_harus_kembali']}</td>
+                        <td>" . date('d F Y', strtotime($row['tgl_harus_kembali'])) . "</td>
                         <td>{$row['telat']} hari</td>
                     </tr>";
                                             $no++;
