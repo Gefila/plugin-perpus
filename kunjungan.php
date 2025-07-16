@@ -1,6 +1,6 @@
-<?php
-$conn = new mysqli("localhost", "root", "", "db_ti6b_uas");
-if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
+<?php 
+$conn = new mysqli("localhost", "root", "", "db_ti6b_uas"); 
+if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);  
 
 if (isset($_GET['hapus'])) {
     $idHapus = $conn->real_escape_string($_GET['hapus']);
@@ -18,10 +18,11 @@ $result = $conn->query("
         k.id_kunjungan, 
         k.tgl_kunjungan, 
         k.tujuan, 
+        k.id_anggota,
         COALESCE(a.nm_anggota, k.nama_pengunjung) AS nama_pengunjung
     FROM kunjungan k
     LEFT JOIN anggota a ON k.id_anggota = a.id_anggota
-    ORDER BY k.tgl_kunjungan DESC
+    ORDER BY k.tgl_kunjungan DESC 
 ");
 ?>
 
@@ -46,6 +47,7 @@ $result = $conn->query("
                     <tr>
                         <th>ID</th>
                         <th>Nama Pengunjung</th>
+                        <th>Status</th>
                         <th>Tanggal Kunjungan</th>
                         <th>Tujuan</th>
                         <th>Aksi</th>
@@ -57,6 +59,9 @@ $result = $conn->query("
                         <tr>
                             <td><?= htmlspecialchars($row['id_kunjungan']) ?></td>
                             <td><?= htmlspecialchars($row['nama_pengunjung']) ?></td>
+                            <td>
+                                <?= $row['id_anggota'] ? '<span class="badge bg-primary">Anggota</span>' : '<span class="badge bg-secondary">Non-Anggota</span>' ?>
+                            </td>
                             <td><?= date("d M Y", strtotime($row['tgl_kunjungan'])) ?></td>
                             <td><?= htmlspecialchars($row['tujuan']) ?></td>
                             <td>
@@ -71,7 +76,7 @@ $result = $conn->query("
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-muted">Tidak ada data kunjungan.</td>
+                            <td colspan="6" class="text-muted">Tidak ada data kunjungan.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
