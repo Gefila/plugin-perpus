@@ -4,6 +4,11 @@
 
 <!-- Replace the existing style section with this: -->
 <style>
+    body {
+        background: linear-gradient(to right, #eef3ff, #dce7ff);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
 /* Main Form Container */
 .perpus-form-container {
     max-width: 600px;
