@@ -1,6 +1,4 @@
 <?php
-// Koneksi database (sesuaikan dengan konfigurasi Anda)
-require_once 'koneksi.php';
 
 function generateNoPengembalian($conn) {
     $r = $conn->query("SELECT MAX(CAST(SUBSTRING(no_pengembalian,3) AS UNSIGNED)) AS max_num FROM pengembalian");
