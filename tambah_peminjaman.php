@@ -511,33 +511,65 @@ $copyResult = $conn->query("
                     </div>
                 </div>
                 
-                <div class="row">
+                <?php
+                    // Tanggal default: hari ini dan 7 hari setelahnya
+                    $tgl_pinjam = date('Y-m-d');
+                    $tgl_kembali = date('Y-m-d', strtotime($tgl_pinjam . ' +7 days'));
+                    ?>
+
+                    <div class="row">
+                    <!-- Tanggal Pinjam -->
                     <div class="col-md-6">
                         <div class="perpus-input-group">
-                            <label for="tgl_pinjam">Tanggal Pinjam</label>
-                            <div class="perpus-input-wrapper">
-                                <span class="perpus-input-icon">
-                                    <i class="fas fa-calendar-alt"></i>
-                                </span>
-                                <input type="date" name="tgl_pinjam" id="tgl_pinjam" class="perpus-input-field" 
-                                       value="<?= htmlspecialchars($tgl_pinjam) ?>" required />
-                            </div>
+                        <label for="tgl_pinjam">Tanggal Pinjam</label>
+                        <div class="perpus-input-wrapper">
+                            <span class="perpus-input-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                            </span>
+                            <input type="date" name="tgl_pinjam" id="tgl_pinjam"
+                                class="perpus-input-field"
+                                value="<?= htmlspecialchars($tgl_pinjam) ?>" required />
+                        </div>
                         </div>
                     </div>
+
+                    <!-- Tanggal Kembali -->
                     <div class="col-md-6">
                         <div class="perpus-input-group">
-                            <label for="tgl_kembali">Tanggal Kembali</label>
-                            <div class="perpus-input-wrapper">
-                                <span class="perpus-input-icon">
-                                    <i class="fas fa-calendar-check"></i>
-                                </span>
-                                <input type="date" name="tgl_kembali" id="tgl_kembali" class="perpus-input-field" 
-                                       value="<?= htmlspecialchars($tgl_kembali) ?>" required />
-                            </div>
+                        <label for="tgl_kembali">Tanggal Kembali</label>
+                        <div class="perpus-input-wrapper">
+                            <span class="perpus-input-icon">
+                            <i class="fas fa-calendar-check"></i>
+                            </span>
+                            <input type="date" name="tgl_kembali" id="tgl_kembali"
+                                class="perpus-input-field"
+                                value="<?= htmlspecialchars($tgl_kembali) ?>"
+                                readonly required />
+                        </div>
                         </div>
                     </div>
-                </div>
-                
+                    </div>
+
+                    <!-- Script untuk update otomatis tanggal kembali -->
+                    <script>
+                    document.getElementById('tgl_pinjam').addEventListener('change', function () {
+                        const pinjamDate = new Date(this.value);
+                        if (!isNaN(pinjamDate)) {
+                        // Tambah 7 hari
+      pinjamDate.setDate(pinjamDate.getDate() + 7);
+
+      // Format YYYY-MM-DD
+      const yyyy = pinjamDate.getFullYear();
+      const mm = String(pinjamDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(pinjamDate.getDate()).padStart(2, '0');
+      const kembaliFormatted = `${yyyy}-${mm}-${dd}`;
+
+      // Set tanggal kembali
+      document.getElementById('tgl_kembali').value = kembaliFormatted;
+    }
+  });
+</script>
+
                 <div class="perpus-input-group bg-light p-3 rounded">
                     <h5 class="mb-3">Daftar Buku yang Dipinjam</h5>
                     <table class="table table-bordered" id="tabel_buku">
