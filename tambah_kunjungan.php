@@ -395,8 +395,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <option value="">-- Pilih Tujuan --</option>
                             <option value="Membaca" <?= $tujuan == 'Membaca' ? 'selected' : '' ?>>Membaca</option>
                             <option value="Mengerjakan Tugas" <?= $tujuan == 'Mengerjakan Tugas' ? 'selected' : '' ?>>Mengerjakan Tugas</option>
-                            <option value="Rekreasi" <?= $tujuan == 'Rekreasi' ? 'selected' : '' ?>>Rekreasi</option>
+                            <option value="Refreshing" <?= $tujuan == 'Refreshing' ? 'selected' : '' ?>>Refreshing</option>
                             <option value="Meminjam Buku" <?= $tujuan == 'Meminjam Buku' ? 'selected' : '' ?>>Meminjam Buku</option>
+                            <option value="Kunjungan Biasa" <?= $tujuan == 'Kunjungan Biasa' ? 'selected' : '' ?>>Kunjungan Biasa</option>
+                            <option value="Belajar Kelompok" <?= $tujuan == 'Belajar Kelompok' ? 'selected' : '' ?>>Belajar Kelompok</option>
+
                         </select>
                     </div>
                 </div>
