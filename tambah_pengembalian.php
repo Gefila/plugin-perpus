@@ -655,7 +655,7 @@ while ($row = $detail_buku->fetch_assoc()) {
               <label for="tglPengembalian">Tanggal Pengembalian</label>
               <div class="perpus-input-wrapper">
                 <span class="perpus-input-icon"><i class="fas fa-calendar-check"></i></span>
-                <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="perpus-input-field" value="<?= $editMode ? esc_attr($editData['tgl_pengembalian']) : '' ?>" required />
+                <input type="date" name="tgl_pengembalian" id="tglPengembalian" class="perpus-input-field" value="<?= $editMode ? esc_attr($editData['tgl_pengembalian']) : date('Y-m-d') ?>" required />
               </div>
             </div>
           </div>
@@ -813,7 +813,7 @@ while ($row = $detail_buku->fetch_assoc()) {
         statusElem.classList.add('status-telat');
         statusElem.classList.remove('status-tepat');
       } else {
-        statusElem.innerHTML = `<i class="fas fa-check-circle text-success"></i> Tepat Waktu`;
+        statusElem.innerHTML = `<i class="fas fa-check-circle text-success"></i> Tidak ada keterlambatan`;
         statusElem.classList.add('status-tepat');
         statusElem.classList.remove('status-telat');
       }

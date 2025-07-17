@@ -241,29 +241,52 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
                     <div class="books-container">
                         <?php foreach ($books as $row) : ?>
                             <div class="book-card">
-                                <div class="book-title"><?= htmlspecialchars($row['judul_buku']) ?></div>
-                                <div class="book-author"><?= htmlspecialchars($row['pengarang']) ?></div>
+ <div class="d-flex align-items-start gap-3">
+    <!-- Gambar Cover -->
+    <div>
+        <?php if (!empty($row['cover_buku'])): ?>
+            <?php 
+                $plugin_url = plugin_dir_url(__FILE__);
+                $cover_url = $plugin_url . 'cover/' . $row['cover_buku'];
+            ?>
+            <img src="<?= $cover_url ?>" alt="Cover Buku" width="80" style="object-fit: cover; border-radius: 4px;">
+        <?php else: ?>
+            <div style="width:80px; height:100px; background:#eee; display:flex; align-items:center; justify-content:center; border-radius:4px; color:#999;">
+                No Cover
+            </div>
+        <?php endif; ?>
+    </div>
 
-                                <div class="book-meta">
-                                    <div class="book-meta-item">
-                                        <i class="bi bi-calendar"></i>
-                                        <?= $row['thn_terbit'] ?>
-                                    </div>
-                                    <div class="book-meta-item">
-                                        <span class="stock-indicator <?= $stockClass ?>"></span>
-                                        <i class="fas fa-book text-secondary"></i>
-                                        <?= $row['jml_buku'] ?> Jumlah Buku
-                                    </div>
-                                     <div class="book-meta-item">
-                                        <span class="stock-indicator <?= $stockClass ?>"></span>
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        <?= $row['jml_tersedia'] ?> tersedia
-                                    </div>
-                                    <div class="book-meta-item">
-                                        <i class="bi bi-building"></i>
-                                        <?= htmlspecialchars($row['penerbit']) ?>
-                                    </div>
-                                </div>
+    <!-- Info Buku -->
+    <div class="flex-grow-1">
+        <div class="book-title"><?= htmlspecialchars($row['judul_buku']) ?></div>
+        <div class="book-author"><?= htmlspecialchars($row['pengarang']) ?></div>
+        
+        <div class="book-meta">
+            <div class="book-meta-item">
+                <i class="bi bi-calendar"></i>
+                <?= $row['thn_terbit'] ?>
+            </div>
+            <div class="book-meta-item">
+                <i class="fas fa-book text-secondary"></i>
+                <?= $row['jml_buku'] ?> Jumlah Buku
+            </div>
+            <div class="book-meta-item">
+                <i class="fas fa-check-circle text-success"></i>
+                <?= $row['jml_tersedia'] ?> tersedia
+            </div>
+            <div class="book-meta-item">
+                <i class="bi bi-building"></i>
+                <?= htmlspecialchars($row['penerbit']) ?>
+            </div>
+            <div class="book-meta-item">
+                <i class="bi bi-cash-coin"></i>
+                Rp <?= number_format($row['harga_buku'], 0, ',', '.') ?>
+            </div>
+        </div>
+    </div>
+</div>
+
 
                                 <div class="action-buttons">
                                     <a href="admin.php?page=perpus_utama&panggil=tambah_buku.php&edit=<?= $row['id_buku'] ?>"
