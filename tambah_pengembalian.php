@@ -233,22 +233,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
 
         // Simpan denda tambahan jika ada
         if (!empty($id_denda_tambahan)) {
-            $stmt_tarif = $conn->prepare("SELECT tarif_denda FROM denda WHERE id_denda = ?");
-            $stmt_tarif->bind_param("s", $id_denda_tambahan);
-            $stmt_tarif->execute();
-            $result_tarif_tambahan = $stmt_tarif->get_result();
-            if ($result_tarif_tambahan && $result_tarif_tambahan->num_rows > 0) {
-                $tarif_tambahan = (int)$result_tarif_tambahan->fetch_assoc()['tarif_denda'];
-                $jumlah_copy = count($copy_buku);
-                $subtotal_tambahan = $tarif_tambahan * $jumlah_copy;
+    $stmt_tarif = $conn->prepare("SELECT tarif_denda FROM denda WHERE id_denda = ?");
+    $stmt_tarif->bind_param("s", $id_denda_tambahan);
+    $stmt_tarif->execute();
+    $result_tarif = $stmt_tarif->get_result();
 
-                $stmt_denda = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, ?, ?, ?)");
-                $stmt_denda->bind_param("ssii", $no_pengembalian, $id_denda_tambahan, $jumlah_copy, $subtotal_tambahan);
-                if (!$stmt_denda->execute()) throw new Exception("Gagal simpan denda tambahan: " . $stmt_denda->error);
-                $stmt_denda->close();
+    if ($result_tarif && $row_tarif = $result_tarif->fetch_assoc()) {
+        $tarif_persen = (float)$row_tarif['tarif_denda']; // contoh: 10 berarti 10%
+
+        $total_denda_tambahan = 0;
+        foreach ($copy_buku as $cb) {
+            $q = $conn->prepare("SELECT b.harga_buku 
+                FROM copy_buku cb JOIN buku b ON cb.id_buku = b.id_buku
+                WHERE cb.no_copy_buku = ?");
+            $q->bind_param("s", $cb);
+            $q->execute();
+            $res = $q->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                $harga = (int)$row['harga_buku'];
+                $denda = ($tarif_persen / 100) * $harga;
+                $total_denda_tambahan += $denda;
             }
-            $stmt_tarif->close();
+            $q->close();
         }
+
+        $jumlah_copy = count($copy_buku);
+        $stmt_denda = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, ?, ?, ?)");
+        $total_denda_tambahan = round($total_denda_tambahan);
+        $stmt_denda->bind_param("ssii", $no_pengembalian, $id_denda_tambahan, $jumlah_copy, $total_denda_tambahan);
+        $stmt_denda->execute();
+        $stmt_denda->close();
+    }
+    $stmt_tarif->close();
+}
 
         $conn->commit();
         echo "<script>alert('Pengembalian berhasil disimpan!');location='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
@@ -292,7 +309,7 @@ $peminjaman = $conn->query("
 ");
 
 $detail_buku = $conn->query("
-    SELECT d.no_peminjaman, d.no_copy_buku, b.id_buku, b.judul_buku
+    SELECT d.no_peminjaman, d.no_copy_buku, b.id_buku, b.judul_buku, b.harga_buku
     FROM dapat d
     JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
     JOIN buku b ON cb.id_buku = b.id_buku
@@ -671,7 +688,7 @@ while ($row = $detail_buku->fetch_assoc()) {
             ?>
               <option value="<?= htmlspecialchars($d['id_denda']) ?>"
                 <?= $editMode && isset($editData['id_denda_tambahan']) && $editData['id_denda_tambahan'] == $d['id_denda'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($d['alasan_denda']) ?> - Rp<?= number_format($d['tarif_denda'], 0, ',', '.') ?>
+                <?= htmlspecialchars($d['alasan_denda']) ?> - <?= $d['tarif_denda'] ?>%
               </option>
             <?php endwhile; ?>
           </select>
@@ -753,25 +770,42 @@ function updateDenda() {
   if (hari < 0) hari = 0;
 
   let jumlahBuku = 0;
+  let copyDipilih = [];
+
   if (editMode) {
-    jumlahBuku = existingCopies.length;
+    copyDipilih = existingCopies;
   } else {
-    jumlahBuku = document.querySelectorAll('input[name="no_copy_buku[]"]:checked').length;
+    copyDipilih = Array.from(document.querySelectorAll('input[name="no_copy_buku[]"]:checked')).map(cb => cb.value);
   }
+  jumlahBuku = copyDipilih.length;
 
   const dendaTelat = hari * tarifPerHari * jumlahBuku;
 
-  let tarifTambahan = 0;
+  // Denda tambahan berbasis persentase harga buku
+  let totalTambahan = 0;
   const tambahanSelect = document.getElementById('id_denda_tambahan');
   if (tambahanSelect && tambahanSelect.value) {
     const selectedText = tambahanSelect.selectedOptions[0].text || '';
-    const match = selectedText.match(/Rp([\d\.]+)/);
+    const match = selectedText.match(/(\d+)%/);
     if (match) {
-      tarifTambahan = parseInt(match[1].replace(/\./g, ''), 10) || 0;
+      const tarifPersen = parseFloat(match[1]) || 0;
+
+      // Cari harga tiap buku terpilih
+      const peminjamanSelect = document.getElementById('peminjamanSelect');
+      const noPeminjaman = peminjamanSelect ? peminjamanSelect.value : null;
+
+      if (noPeminjaman && detailBuku[noPeminjaman]) {
+        detailBuku[noPeminjaman].forEach(b => {
+          if (copyDipilih.includes(b.no_copy_buku)) {
+            const harga = parseFloat(b.harga_buku) || 0;
+            totalTambahan += (tarifPersen / 100) * harga;
+          }
+        });
+      }
     }
   }
-  const totalTambahan = tarifTambahan * jumlahBuku;
-  const total = dendaTelat + totalTambahan;
+
+  const total = Math.round(dendaTelat + totalTambahan);
 
   const statusElem = document.getElementById('status_pengembalian');
   if (hari > 0) {
@@ -792,13 +826,13 @@ function updateDenda() {
   if (totalDendaField) totalDendaField.value = total.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
   if (tarifDendaHidden) tarifDendaHidden.value = total;
 
-  // Debug
   console.log('tglPengembalian:', tgl);
   console.log('tglHarusDate:', tglHarusDate);
   console.log('hari telat:', hari);
-  console.log('tarif/hari:', tarifPerHari);
   console.log('jumlah buku:', jumlahBuku);
   console.log('dendaTelat:', dendaTelat);
+  console.log('dendaTambahan:', totalTambahan);
+  console.log('total:', total);
 }
 
 function clearDendaFields() {
@@ -890,5 +924,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 
-</body>
+</body> 
 </html>
