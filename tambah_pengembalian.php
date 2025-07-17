@@ -85,26 +85,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['simpan'])) {
       }
 
       // Denda tambahan
-      // Denda tambahan
-      if ($id_denda_tambahan) {
-        $stmt_tarif2 = $conn->prepare("SELECT tarif_denda FROM denda WHERE id_denda=?");
-        $stmt_tarif2->bind_param("s", $id_denda_tambahan);
-        $stmt_tarif2->execute();
-        $result2 = $stmt_tarif2->get_result();
+if ($id_denda_tambahan) {
+    $stmt_tarif2 = $conn->prepare("SELECT tarif_denda FROM denda WHERE id_denda=?");
+    $stmt_tarif2->bind_param("s", $id_denda_tambahan);
+    $stmt_tarif2->execute();
+    $result2 = $stmt_tarif2->get_result();
 
-        if ($result2 && $row2 = $result2->fetch_assoc()) {
-          $tarif2 = (int)$row2['tarif_denda'];
-          $jumlah_copy = count($existingCopies);
-          $subtotal2 = $tarif2 * $jumlah_copy;
+    if ($result2 && $row2 = $result2->fetch_assoc()) {
+        $tarif_persen = (float)$row2['tarif_denda']; // tarif dalam persen
+        $total_denda_tambahan = 0;
 
-          $ins2 = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, ?, ?, ?)");
-          $ins2->bind_param("ssii", $no_pengembalian, $id_denda_tambahan, $jumlah_copy, $subtotal2);
-          $ins2->execute();
-          $ins2->close();
+        foreach ($existingCopies as $cb) {
+            $q = $conn->prepare("SELECT b.harga_buku 
+                FROM copy_buku cb 
+                JOIN buku b ON cb.id_buku = b.id_buku
+                WHERE cb.no_copy_buku = ?");
+            $q->bind_param("s", $cb);
+            $q->execute();
+            $res = $q->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                $harga = (int)$row['harga_buku'];
+                $denda = ($tarif_persen / 100) * $harga;
+                $total_denda_tambahan += $denda;
+            }
+            $q->close();
         }
 
-        $stmt_tarif2->close();
-      }
+        $jumlah_copy = count($existingCopies);
+        $total_denda_tambahan = round($total_denda_tambahan);
+
+        $ins2 = $conn->prepare("INSERT INTO pengembalian_denda(no_pengembalian, id_denda, jumlah_copy, subtotal) VALUES (?, ?, ?, ?)");
+        $ins2->bind_param("ssii", $no_pengembalian, $id_denda_tambahan, $jumlah_copy, $total_denda_tambahan);
+        $ins2->execute();
+        $ins2->close();
+    }
+
+    $stmt_tarif2->close();
+}
 
       $conn->commit();
       echo "<script>alert('Pengembalian berhasil diperbarui!');location='admin.php?page=perpus_utama&panggil=pengembalian.php';</script>";
@@ -328,6 +345,23 @@ while ($row = $peminjaman->fetch_assoc()) {
 $detailBuku = [];
 while ($row = $detail_buku->fetch_assoc()) {
   $detailBuku[$row['no_peminjaman']][] = $row;
+}
+if ($editMode && !empty($editData['no_peminjaman'])) {
+    $detailBuku = [];  // kosongkan dulu
+    $stmtX = $conn->prepare("
+        SELECT d.no_peminjaman, d.no_copy_buku, b.id_buku, b.judul_buku, b.harga_buku
+        FROM dapat d
+        JOIN copy_buku cb ON d.no_copy_buku = cb.no_copy_buku
+        JOIN buku b ON cb.id_buku = b.id_buku
+        WHERE d.no_peminjaman = ?
+    ");
+    $stmtX->bind_param("s", $editData['no_peminjaman']);
+    $stmtX->execute();
+    $resX = $stmtX->get_result();
+    while ($rowX = $resX->fetch_assoc()) {
+        $detailBuku[$rowX['no_peminjaman']][] = $rowX;
+    }
+    $stmtX->close();
 }
 ?>
 
@@ -914,33 +948,39 @@ while ($row = $detail_buku->fetch_assoc()) {
       updateDenda();
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const anggotaSelect = document.getElementById('anggotaSelect');
-      const peminjamanSelect = document.getElementById('peminjamanSelect');
-      const tanggalPengembalian = document.getElementById('tglPengembalian');
-      const dendaTambahanSelect = document.getElementById('id_denda_tambahan');
-      const tabelBuku = document.getElementById('tabelBuku');
+document.addEventListener('DOMContentLoaded', () => {
+  const anggotaSelect        = document.getElementById('anggotaSelect');
+  const peminjamanSelect     = document.getElementById('peminjamanSelect');
+  const tanggalPengembalian  = document.getElementById('tglPengembalian');
+  const dendaTambahanSelect  = document.getElementById('id_denda_tambahan');
+  const tabelBuku            = document.getElementById('tabelBuku');
+  const tglHarusDisplay      = document.getElementById('tgl_harus_kembali_display');
 
-      if (anggotaSelect) anggotaSelect.addEventListener('change', filterPeminjaman);
-      if (peminjamanSelect) peminjamanSelect.addEventListener('change', updateInfo);
-      if (tanggalPengembalian) tanggalPengembalian.addEventListener('change', updateDenda);
-      if (dendaTambahanSelect) dendaTambahanSelect.addEventListener('change', updateDenda);
-      if (e.target.matches('input[name="no_copy_buku[]"]')) {
-        updateDenda();
-      }
+  // PASANG LISTENER YANG DIBUTUHKAN
+  if (anggotaSelect) anggotaSelect.addEventListener('change', filterPeminjaman);
+  if (peminjamanSelect) peminjamanSelect.addEventListener('change', updateInfo);
+  if (tanggalPengembalian) tanggalPengembalian.addEventListener('change', updateDenda);
+  if (dendaTambahanSelect) dendaTambahanSelect.addEventListener('change', updateDenda);  // ← INI YANG PENTING
 
-      if (editMode) {
-        updateDenda();
-      }
-    });
-
-    $(document).ready(function() {
+  // Inisialisasi Select2
+  if (window.jQuery && $('#anggotaSelect').length) {
     $('#anggotaSelect').select2({
-        placeholder: "-- Pilih Id & Anggota --",
-        allowClear: true,
-        width: '100%'
+      placeholder: "-- Pilih Id & Anggota --",
+      allowClear: true,
+      width: '100%'
     });
+  }
+
+  if (editMode && tglHarusDisplay && tglHarusDisplay.value) {
+    const tmp = new Date(tglHarusDisplay.value);
+    if (!isNaN(tmp)) tglHarusDate = tmp;
+  }
+
+  // Hitung denda saat form dimuat
+  updateDenda();
 });
+
+
   </script>
 
 </body>
