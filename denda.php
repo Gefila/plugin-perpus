@@ -27,12 +27,14 @@ $denda_lain = $conn->query("SELECT * FROM denda WHERE id_denda != 'D1'");
 
 <div class="container my-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 style="color:#2980b9 "><i class="fas fa-money-bill-wave"></i> Data Denda Perpustakaan</h2>
-        <a href="admin.php?page=perpus_utama&panggil=tambah_denda.php" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Tambah Denda
-        </a>
-    </div>
-
+            <h2 class="mb-0">
+                <i class="fa fa-list-alt me-2" style="color:#2980b9"></i>Daftar Denda Perpustakaan
+            </h2>
+            <a href="?page=perpus_utama&panggil=tambah_denda.php" class="btn btn-primary btn-glow">
+                <i class="fa fa-plus"></i> Tambah Denda
+            </a>
+        </div>
+<div class="card-glass p-4">
     <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle">
             <thead class="table-danger text-center">
@@ -93,5 +95,6 @@ $denda_lain = $conn->query("SELECT * FROM denda WHERE id_denda != 'D1'");
                 <?php endif; ?>
             </tbody>
         </table>
+    </div>
     </div>
 </div>
