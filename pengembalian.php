@@ -3,6 +3,19 @@
 // Hapus data pengembalian jika ada parameter hapus
 if (isset($_GET['hapus'])) {
     $idHapus = $conn->real_escape_string($_GET['hapus']);
+
+    // Jalankan query untuk ambil semua copy buku terkait pengembalian ini
+    $copyResult = $conn->query("SELECT no_copy_buku FROM bisa WHERE no_pengembalian = '$idHapus'");
+    if ($copyResult) {
+        while ($row = $copyResult->fetch_assoc()) {
+            $no_copy_buku = $row['no_copy_buku'];
+
+            // Update status menjadi 'dipinjam'
+            $conn->query("UPDATE copy_buku SET status_buku = 'dipinjam' WHERE no_copy_buku = '$no_copy_buku'");
+        }
+    }
+
+    // Hapus data setelah status buku dikembalikan
     $conn->query("DELETE FROM pengembalian_denda WHERE no_pengembalian = '$idHapus'");
     $conn->query("DELETE FROM bisa WHERE no_pengembalian = '$idHapus'");
     $conn->query("DELETE FROM pengembalian WHERE no_pengembalian = '$idHapus'");
@@ -109,31 +122,59 @@ if ($result) {
                 </thead>
                 <tbody>
                     <?php if (!empty($data)): ?>
-                        <?php $no=1; foreach ($data as $item): ?>
-                            <?php
-                            $tglKembali = strtotime($item['tgl_pengembalian']);
-                            $tglHarus = strtotime($item['tgl_harus_kembali']);
-                            $hariTelat = 0;
-                            if ($tglKembali > $tglHarus) {
-                                $hariTelat = floor(($tglKembali - $tglHarus) / (60 * 60 * 24));
-                            }
+                        <?php $no = 1; foreach ($data as $item): ?>
+                                <?php
+                                // Hitung jumlah copy
+                                $jumlahCopy = 0;
+                                foreach ($item['buku'] as $b) {
+                                    $jumlahCopy += count($b['copy']);
+                                }
 
-                            $jumlahCopy = 0;
-                            foreach ($item['buku'] as $b) {
-                                $jumlahCopy += count($b['copy']);
-                            }
-                            ?>
+                                // Hitung hari keterlambatan
+                                $tglKembali = strtotime($item['tgl_pengembalian']);
+                                $tglHarus   = strtotime($item['tgl_harus_kembali']);
+                                $hariTelat  = ($tglKembali > $tglHarus) ? floor(($tglKembali - $tglHarus) / (60 * 60 * 24)) : 0;
+
+                                // Ambil semua copy untuk cek delete berbasis tanggal
+                                $copies = [];
+                                foreach ($item['buku'] as $b) {
+                                    foreach ($b['copy'] as $c) {
+                                        $copies[] = $conn->real_escape_string($c);
+                                    }
+                                }
+
+                                // Date-based delete logic
+                                $canDelete       = true;
+                                $tglKembaliEsc   = $conn->real_escape_string($item['tgl_pengembalian']);
+                                $noPeminjamanEsc = $conn->real_escape_string($item['no_peminjaman']);
+                                $noPengembalianEsc = $conn->real_escape_string($item['no_pengembalian']);
+                                foreach ($copies as $copyId) {
+                                    $copyEsc = $conn->real_escape_string($copyId);
+                                    $check = $conn->query("
+                                        SELECT 1 
+                                        FROM bisa b 
+                                        JOIN pengembalian p ON b.no_pengembalian = p.no_pengembalian 
+                                        WHERE b.no_copy_buku = '$copyEsc' 
+                                        AND b.no_pengembalian > '$noPengembalianEsc'
+                                        LIMIT 1
+                                    ");
+                                    if ($check && $check->num_rows) {
+                                        $canDelete = false;
+                                        break;
+                                    }
+                                }
+                                ?>
                             <tr>
                                 <td><?= $no++ ?></td>
                                 <td><?= htmlspecialchars($item['no_pengembalian']) ?></td>
                                 <td><?= htmlspecialchars($item['id_anggota']) ?></td>
                                 <td><?= htmlspecialchars($item['nm_anggota']) ?></td>
-                                <td style="text-align:left;">
+                                <td class="text-start">
                                     <?php foreach ($item['buku'] as $id_buku => $b): ?>
                                         <strong><?= htmlspecialchars($id_buku) ?></strong> - <?= htmlspecialchars($b['judul']) ?><br>
                                     <?php endforeach; ?>
                                 </td>
-                                <td style="text-align:left;">
+                                <td class="text-start">
                                     <?php foreach ($item['buku'] as $id_buku => $b): ?>
                                         <strong><?= htmlspecialchars($id_buku) ?></strong>:<br>
                                         <?php foreach ($b['copy'] as $copy): ?>
@@ -159,27 +200,26 @@ if ($result) {
                                         <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
-                            <td class="text-center align-middle">
-                                <div class="d-flex justify-content-center align-items-center" style="gap: 5px;">
-                                <!-- Tombol Edit -->
-                                <a href="admin.php?page=perpus_utama&panggil=tambah_pengembalian.php&edit=<?= urlencode($item['no_pengembalian']) ?>"
-                                class="btn btn-sm btn-warning mb-1">
-                                    <i class="fa fa-pen-to-square"></i>
-                                </a>
-                                <!-- Tombol Hapus -->
-                                <a href="admin.php?page=perpus_utama&panggil=pengembalian.php&hapus=<?= urlencode($item['no_pengembalian']) ?>"
-                                class="btn btn-sm btn-danger"
-                                onclick="return confirm('Yakin ingin menghapus data ini?')">
-                                    <i class="fa fa-trash"></i>
-                                </a>
-                                </div>
-                            </td>
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center align-items-center" style="gap:5px;">
+                                        <a href="admin.php?page=perpus_utama&panggil=tambah_pengembalian.php&edit=<?= urlencode($item['no_pengembalian']) ?>" class="btn btn-sm btn-warning">
+                                            <i class="fa fa-pen-to-square"></i>
+                                        </a>
+                                        <?php if ($canDelete): ?>
+                                            <a href="admin.php?page=perpus_utama&panggil=pengembalian.php&hapus=<?= urlencode($item['no_pengembalian']) ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus data ini?')">
+                                                <i class="fa fa-trash"></i>
+                                            </a>
+                                        <?php else: ?>
+                                            <button class="btn btn-sm btn-secondary" disabled title="Sudah ada peminjaman ulang setelah pengembalian ini">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr>
-                            <td colspan="11" class="text-muted">Tidak ada data pengembalian.</td>
-                        </tr>
+                        <tr><td colspan="11" class="text-muted">Tidak ada data pengembalian.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
