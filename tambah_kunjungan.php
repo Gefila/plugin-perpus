@@ -87,6 +87,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 ?>
 
+<!-- jQuery (jika belum ada) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Select2 CSS dan JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+
 <style>
 /* Main Form Container */
 .perpus-form-container {
@@ -343,13 +351,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="perpus-input-group" id="form_id_anggota">
                     <label for="id_anggota">ID Pengunjung</label>
                     <div class="perpus-select-wrapper">
-                        <select name="id_anggota" id="id_anggota" onchange="isiNama()">
-                            <option value="">-- Pilih ID & Nama --</option>
-                            <?php foreach ($anggotaData as $id => $nama): ?>
-                                <option value="<?= $id ?>" <?= $id == $id_anggota ? 'selected' : '' ?>><?= $id ?> - <?= htmlspecialchars($nama) ?>
+                    <select name="id_anggota" id="id_anggota" onchange="isiNama()" style="width:100%">
+                        <option value="">-- Pilih ID & Nama --</option>
+                        <?php foreach ($anggotaData as $id => $nama): ?>
+                            <option value="<?= $id ?>" <?= $id == $id_anggota ? 'selected' : '' ?>>
+                                <?= $id ?> - <?= htmlspecialchars($nama) ?>
                             </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <?php endforeach; ?>
+                    </select>
                     </div>
                 </div>
                 
@@ -395,11 +404,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <option value="">-- Pilih Tujuan --</option>
                             <option value="Membaca" <?= $tujuan == 'Membaca' ? 'selected' : '' ?>>Membaca</option>
                             <option value="Mengerjakan Tugas" <?= $tujuan == 'Mengerjakan Tugas' ? 'selected' : '' ?>>Mengerjakan Tugas</option>
-                            <option value="Refreshing" <?= $tujuan == 'Refreshing' ? 'selected' : '' ?>>Refreshing</option>
+                            <option value="Rekreasi" <?= $tujuan == 'Rekreasi' ? 'selected' : '' ?>>Rekreasi</option>
                             <option value="Meminjam Buku" <?= $tujuan == 'Meminjam Buku' ? 'selected' : '' ?>>Meminjam Buku</option>
-                            <option value="Kunjungan Biasa" <?= $tujuan == 'Kunjungan Biasa' ? 'selected' : '' ?>>Kunjungan Biasa</option>
-                            <option value="Belajar Kelompok" <?= $tujuan == 'Belajar Kelompok' ? 'selected' : '' ?>>Belajar Kelompok</option>
-
                         </select>
                     </div>
                 </div>
@@ -424,6 +430,17 @@ function isiNama() {
     const id = document.getElementById("id_anggota").value;
     document.getElementById("nm_anggota").value = anggotaData[id] || "";
 }
+
+
+$(document).ready(function() {
+    $('#id_anggota').select2({
+        placeholder: "-- Pilih ID & Nama --",
+        allowClear: true,
+        width: '100%'  // Pastikan mengikuti style CSS kamu
+    });
+});
+
+
 
 function toggleMode() {
     const isNon = document.getElementById("is_non_anggota").checked;
