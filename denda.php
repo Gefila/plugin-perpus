@@ -72,7 +72,7 @@ $denda_lain = $conn->query("SELECT * FROM denda WHERE id_denda != 'D1'");
                 <tr>
                     <td><?= $no++ ?></td>
                     <td><?= htmlspecialchars($row['id_denda']) ?></td>
-                    <td class="text-danger fw-semibold">Rp<?= number_format($row['tarif_denda'], 0, ',', '.') ?></td>
+                    <td class="text-danger fw-semibold"><?= htmlspecialchars($row['tarif_denda']) ?>%</td>
                     <td><?= htmlspecialchars($row['alasan_denda']) ?></td>
                     <td class="text-center">
                         <a href="admin.php?page=perpus_utama&panggil=tambah_denda.php&edit=<?= $row['id_denda'] ?>" class="btn btn-warning btn-glow me-1">

@@ -262,13 +262,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
 
             <div class="perpus-input-group">
-                <label for="tarifDenda">Tarif Denda</label>
+                <label for="tarifDenda">Tarif Denda dalam %</label>
                 <div class="perpus-input-wrapper">
                     <span class="perpus-input-icon">
                         <i class="fas fa-coins"></i>
                     </span>
                     <input type="text" class="perpus-input-field" id="tarifDenda" name="tarifDenda" 
-                           maxlength="10" placeholder="Contoh: 5000" 
+                           maxlength="10" placeholder="Contoh: 50" 
                            value="<?= htmlspecialchars($tarifDenda) ?>" required>
                 </div>
                 <small class="text-muted">Masukkan angka tanpa titik/koma</small>

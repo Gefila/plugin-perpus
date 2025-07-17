@@ -66,6 +66,15 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
+    .cover-img {
+        width: 90px;
+        height: 120px; /* 2:3 aspect ratio */
+        object-fit: cover;
+        border-radius: 4px;
+        display: block;
+    }
+
+
     .header-section {
         background-color: #fff;
         padding: 20px;
@@ -95,8 +104,10 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
         transition: transform 0.2s;
     }
 
+    .cover-wrapper {
+    margin-bottom: 10px; /* Jarak antara cover dan tombol */
+    }
     
-
     .book-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -157,6 +168,15 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
         font-size: 0.85rem;
         color: #555;
     }
+
+
+    .book-price {
+        margin-top: 8px;      
+        font-size: 1.1rem;    
+        font-weight: 600;     
+        color: #333;         
+    }
+
 
     .stock-indicator {
         width: 16px;
@@ -249,10 +269,14 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
                 $plugin_url = plugin_dir_url(__FILE__);
                 $cover_url = $plugin_url . 'cover/' . $row['cover_buku'];
             ?>
-            <img src="<?= $cover_url ?>" alt="Cover Buku" width="80" style="object-fit: cover; border-radius: 4px;">
+            <div class="cover-wrapper">
+                <img src="<?= $cover_url ?>" alt="Cover Buku" class="cover-img">
+            </div>
         <?php else: ?>
-            <div style="width:80px; height:100px; background:#eee; display:flex; align-items:center; justify-content:center; border-radius:4px; color:#999;">
-                No Cover
+            <div class="cover-wrapper">
+                <div style="width:100px; height:150px; background:#eee; display:flex; align-items:center; justify-content:center; border-radius:4px; color:#999;">
+                    No Cover
+                </div>
             </div>
         <?php endif; ?>
     </div>
@@ -279,11 +303,11 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
                 <i class="bi bi-building"></i>
                 <?= htmlspecialchars($row['penerbit']) ?>
             </div>
-            <div class="book-meta-item">
+        </div>
+            <div class="book-price">
                 <i class="bi bi-cash-coin"></i>
                 Rp <?= number_format($row['harga_buku'], 0, ',', '.') ?>
             </div>
-        </div>
     </div>
 </div>
 
