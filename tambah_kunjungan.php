@@ -400,13 +400,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="perpus-input-group">
                     <label for="tujuan">Tujuan</label>
                     <div class="perpus-select-wrapper">
-                        <select name="tujuan" id="tujuan" required>
+                        select name="tujuan" id="tujuan" required>
                             <option value="">-- Pilih Tujuan --</option>
                             <option value="Membaca" <?= $tujuan == 'Membaca' ? 'selected' : '' ?>>Membaca</option>
                             <option value="Mengerjakan Tugas" <?= $tujuan == 'Mengerjakan Tugas' ? 'selected' : '' ?>>Mengerjakan Tugas</option>
                             <option value="Rekreasi" <?= $tujuan == 'Rekreasi' ? 'selected' : '' ?>>Rekreasi</option>
-                            <option value="Meminjam Buku" <?= $tujuan == 'Meminjam Buku' ? 'selected' : '' ?>>Meminjam Buku</option>
-                        </select>
+                            <option value="Meminjam Buku" <?= $tujuan == 'Meminjam Buku' ? 'selected' : '' ?>>Meminjam Buku</option>
+                            <option value="Kunjungan Biasa" <?= $tujuan == 'Kunjungan Biasa' ? 'selected' : '' ?>>Kunjungan Biasa</option>
+                            <option value="Kerja Kelompok" <?= $tujuan == 'Kerja Kelompok' ? 'selected' : '' ?>>Kerja Kelompok</option>
                     </div>
                 </div>
             </div>
