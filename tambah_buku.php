@@ -62,9 +62,15 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
         $target_file = $cover_dir . $cover_filename;
 
         if (move_uploaded_file($_FILES['cover_buku']['tmp_name'], $target_file)) {
-            // sukses upload, simpan nama file ke DB
+            // Jika edit dan ada cover lama, hapus file lama
+            if ($editData && !empty($editData['cover_buku'])) {
+                $old_cover_path = $cover_dir . $editData['cover_buku'];
+                if (file_exists($old_cover_path)) {
+                    unlink($old_cover_path); // hapus file lama
+                }
+            }
         } else {
-            $cover_filename = ''; // gagal upload
+            $cover_filename = $editData['cover_buku'] ?? ''; // fallback ke lama
         }
     } elseif ($editData && isset($editData['cover_buku'])) {
         $cover_filename = $editData['cover_buku']; // pakai file lama kalau tidak upload ulang
@@ -290,14 +296,18 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
                     </div>
                     <div class="perpus-form-group">
                         <label class="perpus-form-label">Harga Buku (Rp) <span class="perpus-required">*</span></label>
-                        <input type="number" name="harga_buku" class="perpus-form-control" min="0" required value="<?= isset($editData['harga_buku']) ? htmlspecialchars($editData['harga_buku']) : '0' ?>">
+                        <input type="number" name="harga_buku" class="perpus-form-control" min="0" required value="<?= isset($editData['harga_buku']) ? htmlspecialchars($editData['harga_buku']) : '' ?>">
                     </div>
 
                     <div class="perpus-form-group">
                         <label class="perpus-form-label">Cover Buku (JPG/PNG)</label>
                         <input type="file" name="cover_buku" class="perpus-form-control" accept="image/*">
                         <?php if (!empty($editData['cover_buku'])) : ?>
-                            <small>Cover lama: <a href="<?= htmlspecialchars($editData['cover_buku']) ?>" target="_blank">Lihat</a></small>
+                        <?php 
+                            $plugin_url = plugin_dir_url(__FILE__);
+                            $cover_url = $plugin_url . 'cover/' . htmlspecialchars($editData['cover_buku']);
+                        ?>
+                            <small>Cover lama: <a href="<?= $cover_url ?>" target="_blank">Lihat</a></small>
                         <?php endif; ?>
                     </div>
 
