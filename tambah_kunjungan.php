@@ -344,9 +344,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label for="id_anggota">ID Pengunjung</label>
                     <div class="perpus-select-wrapper">
                         <select name="id_anggota" id="id_anggota" onchange="isiNama()">
-                            <option value="">-- Pilih ID --</option>
+                            <option value="">-- Pilih ID & Nama --</option>
                             <?php foreach ($anggotaData as $id => $nama): ?>
-                                <option value="<?= $id ?>" <?= $id == $id_anggota ? 'selected' : '' ?>><?= $id ?></option>
+                                <option value="<?= $id ?>" <?= $id == $id_anggota ? 'selected' : '' ?>><?= $id ?> - <?= htmlspecialchars($nama) ?>
+                            </option>
                             <?php endforeach; ?>
                         </select>
                     </div>

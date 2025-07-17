@@ -202,6 +202,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     transform: translateY(-2px);
 }
 
+.perpus-btn-warning {
+    background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%) !important;
+    color: white !important;
+    border: none;
+}
+
 .perpus-btn-secondary {
     background: #f8f9fc;
     color: #4e73df;
@@ -335,9 +341,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
             
             <div class="perpus-btn-group">
-                <button type="submit" class="perpus-btn perpus-btn-primary">
-                    <i class="fas fa-save"></i> <?= $isEdit ? 'Update' : 'Simpan' ?>
-                </button>
+                  <button type="submit" class="perpus-btn <?= $isEdit ? 'perpus-btn-warning' : 'perpus-btn-primary' ?>">
+                 <i class="fas fa-save"></i> <?= $isEdit ? 'Update' : 'Simpan' ?>
+                   </button>
                 <a href="?page=perpus_utama&panggil=anggota.php" class="perpus-btn perpus-btn-secondary">
                     <i class="fas fa-times"></i> Batal
                 </a>
