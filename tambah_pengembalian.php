@@ -342,6 +342,12 @@ while ($row = $detail_buku->fetch_assoc()) {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <!-- FontAwesome -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+        <!-- jQuery (jika belum ada) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Select2 CSS dan JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
   <style>
     /* Main Form Container */
@@ -610,19 +616,19 @@ while ($row = $detail_buku->fetch_assoc()) {
 
         <!-- Anggota -->
         <div class="perpus-input-group">
-          <label for="anggotaSelect">Anggota</label>
-          <div class="perpus-select-wrapper">
-            <select name="id_anggota" id="anggotaSelect" class="form-select" onchange="filterPeminjaman()" required <?php echo $editMode ? 'disabled' : ''; ?>>
-              <option value="">-- Pilih Anggota --</option>
-              <?php foreach ($anggotaData as $a): ?>
+    <label for="anggotaSelect">Anggota</label>
+    <div class="perpus-select-wrapper">
+        <select name="id_anggota" id="anggotaSelect" class="form-select" style="width: 100%" onchange="filterPeminjaman()" required <?= $editMode ? 'disabled' : ''; ?>>
+            <option value="">-- Pilih Anggota --</option>
+            <?php foreach ($anggotaData as $a): ?>
                 <option value="<?= esc_attr($a['id_anggota']) ?>"
-                  <?= $editMode && $a['id_anggota'] == $editData['id_anggota'] ? 'selected' : '' ?>>
-                  <?= esc_html($a['id_anggota'] . " - " . $a['nm_anggota']) ?>
+                    <?= $editMode && $a['id_anggota'] == $editData['id_anggota'] ? 'selected' : '' ?>>
+                    <?= esc_html($a['id_anggota'] . " - " . $a['nm_anggota']) ?>
                 </option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-        </div>
+            <?php endforeach; ?>
+        </select>
+    </div>
+</div>
 
         <!-- Nomor Peminjaman -->
         <div class="perpus-input-group">
@@ -927,6 +933,14 @@ while ($row = $detail_buku->fetch_assoc()) {
         updateDenda();
       }
     });
+
+    $(document).ready(function() {
+    $('#anggotaSelect').select2({
+        placeholder: "-- Pilih Id & Anggota --",
+        allowClear: true,
+        width: '100%'
+    });
+});
   </script>
 
 </body>

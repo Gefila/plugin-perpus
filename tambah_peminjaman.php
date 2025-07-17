@@ -259,6 +259,7 @@ $copyResult = $conn->query("
 }
 ?>
 
+   
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -267,6 +268,13 @@ $copyResult = $conn->query("
     <title><?= $isEdit ? 'Edit' : 'Tambah' ?> Peminjaman</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+      <!-- jQuery (jika belum ada) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Select2 CSS dan JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <style>
         .perpus-form-container {
             max-width: 900px;
@@ -497,7 +505,7 @@ $copyResult = $conn->query("
 <div class="perpus-input-group">
     <label for="id_anggota">ID - Nama Anggota</label>
     <div class="perpus-select-wrapper">
-        <select name="id_anggota" id="id_anggota" required <?= $isEdit ? 'disabled' : '' ?>>
+        <select name="id_anggota" id="id_anggota" required <?= $isEdit ? 'disabled' : '' ?> style="width: 100%">
             <option value="">-- Pilih ID - Anggota --</option>
             <?php 
             $anggota_result->data_seek(0);
@@ -510,7 +518,6 @@ $copyResult = $conn->query("
         </select>
     </div>
 </div>
-
 <?php if ($isEdit): ?>
     <!-- Untuk memastikan id_anggota tetap terkirim saat submit -->
     <input type="hidden" name="id_anggota" value="<?= htmlspecialchars($id_anggota) ?>">
@@ -757,6 +764,14 @@ $copyResult = $conn->query("
             row.cells[0].textContent = i + 1;
         });
     }
+
+    $(document).ready(function() {
+    $('#id_anggota').select2({
+        placeholder: "-- Pilih ID & Nama --",
+        allowClear: true,
+        width: '100%'  // Pastikan mengikuti style CSS kamu
+    });
+});
 
     // Update opsi dropdown berdasarkan buku yang sudah dipilih
     function updateDropdownOptions() {
