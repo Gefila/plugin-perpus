@@ -251,10 +251,12 @@ $categories = $conn->query("SELECT DISTINCT nm_kategori FROM kategori ORDER BY n
                                     </div>
                                     <div class="book-meta-item">
                                         <span class="stock-indicator <?= $stockClass ?>"></span>
+                                        <i class="fas fa-book text-secondary"></i>
                                         <?= $row['jml_buku'] ?> Jumlah Buku
                                     </div>
                                      <div class="book-meta-item">
                                         <span class="stock-indicator <?= $stockClass ?>"></span>
+                                        <i class="fas fa-check-circle text-success"></i>
                                         <?= $row['jml_tersedia'] ?> tersedia
                                     </div>
                                     <div class="book-meta-item">

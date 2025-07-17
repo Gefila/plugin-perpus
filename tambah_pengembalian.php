@@ -859,6 +859,9 @@ function updateInfo() {
         </label>
       `;
       daftarBukuDiv.appendChild(div);
+
+      const checkbox = div.querySelector('input[type="checkbox"]');
+      checkbox.addEventListener('change', updateDenda);
     });
   }
 
@@ -870,11 +873,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const peminjamanSelect = document.getElementById('peminjamanSelect');
   const tanggalPengembalian = document.getElementById('tglPengembalian');
   const dendaTambahanSelect = document.getElementById('id_denda_tambahan');
+  const tabelBuku = document.getElementById('tabelBuku');
 
   if (anggotaSelect) anggotaSelect.addEventListener('change', filterPeminjaman);
   if (peminjamanSelect) peminjamanSelect.addEventListener('change', updateInfo);
   if (tanggalPengembalian) tanggalPengembalian.addEventListener('change', updateDenda);
   if (dendaTambahanSelect) dendaTambahanSelect.addEventListener('change', updateDenda);
+  if (e.target.matches('input[name="no_copy_buku[]"]')) {
+      updateDenda();
+    }
 
   if (editMode) {
     updateDenda();

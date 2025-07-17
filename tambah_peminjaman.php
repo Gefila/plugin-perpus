@@ -494,22 +494,28 @@ $copyResult = $conn->query("
                     <input type="hidden" name="no_peminjaman" value="<?= htmlspecialchars($no_peminjaman) ?>">
                 <?php endif; ?>
                 
-                <div class="perpus-input-group">
-                    <label for="id_anggota">Nama Anggota</label>
-                    <div class="perpus-select-wrapper">
-                        <select name="id_anggota" required>
-                            <option value="">-- Pilih Anggota --</option>
-                            <?php 
-                            $anggota_result->data_seek(0); // Reset pointer result
-                            while ($a = $anggota_result->fetch_assoc()): ?>
-                                <option value="<?= htmlspecialchars($a['id_anggota']) ?>" 
-                                    <?= ($id_anggota == $a['id_anggota']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($a['nm_anggota']) ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                </div>
+<div class="perpus-input-group">
+    <label for="id_anggota">ID - Nama Anggota</label>
+    <div class="perpus-select-wrapper">
+        <select name="id_anggota" id="id_anggota" required <?= $isEdit ? 'disabled' : '' ?>>
+            <option value="">-- Pilih ID - Anggota --</option>
+            <?php 
+            $anggota_result->data_seek(0);
+            while ($a = $anggota_result->fetch_assoc()): ?>
+                <option value="<?= htmlspecialchars($a['id_anggota']) ?>" 
+                    <?= ($id_anggota == $a['id_anggota']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($a['id_anggota']) . ' - ' . htmlspecialchars($a['nm_anggota']) ?>
+                </option>
+            <?php endwhile; ?>
+        </select>
+    </div>
+</div>
+
+<?php if ($isEdit): ?>
+    <!-- Untuk memastikan id_anggota tetap terkirim saat submit -->
+    <input type="hidden" name="id_anggota" value="<?= htmlspecialchars($id_anggota) ?>">
+<?php endif; ?>
+
                 
                 <?php
                     // Tanggal default: hari ini dan 7 hari setelahnya

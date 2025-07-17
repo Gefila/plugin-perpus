@@ -294,7 +294,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             
             <div style="display: flex; justify-content: space-between; margin-top: 2rem;">
                 <a href="?page=perpus_utama&panggil=buku.php" class="perpus-btn-secondary">Kembali</a>
-                <button type="submit" class="perpus-btn-primary"><?= $editData ? 'Update' : 'Simpan' ?></button>
+                <button type="submit" class="perpus-btn-primary bg-warning text-white">
+                <i class="fas fa-save"></i> <?= $editData ? 'Update' : 'Simpan' ?>
+            </button>
             </div>
         </form>
     </div>

@@ -65,7 +65,7 @@ if ($result) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Laporan Denda Perpustakaan</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         @page {

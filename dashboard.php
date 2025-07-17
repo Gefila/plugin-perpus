@@ -203,7 +203,7 @@ $result_pengembalian = $conn->query($query_pengembalian_terakhir);
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header bg-danger text-white">
-                    <strong>Peminjaman yang Telat Dikembalikan</strong>
+                    <strong>Peminjaman yang Telat & Belum Dikembalikan</strong>
                 </div>
                 <div class="card-body p-2">
                     <div class="table-responsive">
